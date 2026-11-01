@@ -423,13 +423,24 @@ class StockDatabaseService {
   public async syncWithSupabase() {
     if (typeof window === 'undefined') return;
     try {
-      const [prodsRes, reqsRes, supsRes] = await Promise.all([
+      const [prodsRes, reqsRes, supsRes, catsRes] = await Promise.all([
         supabase.from('products').select('*'),
         supabase.from('stock_requests').select('*, items:stock_request_items(*)'),
         supabase.from('suppliers').select('*'),
+        supabase.from('categories').select('*'),
       ]);
 
       let changed = false;
+
+      if (catsRes.data && catsRes.data.length > 0) {
+        const supCats = catsRes.data as Category[];
+        const catMap = new Map(this.state.categories.map(c => [c.code, c]));
+        supCats.forEach(sc => {
+          catMap.set(sc.code, { ...catMap.get(sc.code), ...sc });
+        });
+        this.state.categories = Array.from(catMap.values());
+        changed = true;
+      }
 
       if (prodsRes.data && prodsRes.data.length > 0) {
         // Merge Supabase products
@@ -502,6 +513,120 @@ class StockDatabaseService {
   public getCategories(): Category[] {
     this.load();
     return this.state.categories;
+  }
+
+  public saveCategory(categoryData: Partial<Category>, userId?: string, userName?: string, userRole?: RoleType): Category {
+    this.load();
+    if (categoryData.id) {
+      const idx = this.state.categories.findIndex(c => c.id === categoryData.id || c.code === categoryData.code);
+      if (idx !== -1) {
+        this.state.categories[idx] = {
+          ...this.state.categories[idx],
+          ...categoryData,
+        };
+        const updatedCat = this.state.categories[idx];
+        this.save();
+        safeSupabaseSync(
+          supabase.from('categories').update({
+            code: updatedCat.code,
+            name_fr: updatedCat.name_fr,
+            name_ar: updatedCat.name_ar,
+            description: updatedCat.description,
+            color: updatedCat.color,
+            icon: updatedCat.icon,
+            is_active: updatedCat.is_active,
+          }).eq('id', updatedCat.id)
+        );
+        if (userId && userName && userRole) {
+          this.addAuditLog({
+            user_id: userId,
+            user_name: userName,
+            user_role: userRole,
+            action: 'CATEGORY_UPDATE',
+            entity_type: 'categories',
+            entity_id: updatedCat.id,
+            new_values: updatedCat as unknown as Record<string, unknown>,
+            notes: `Modification de la catégorie ${updatedCat.name_fr}`,
+          });
+        }
+        return updatedCat;
+      }
+    }
+
+    const code = (categoryData.code || `CAT_${Date.now().toString().slice(-4)}`).toUpperCase().trim();
+    const newCat: Category = {
+      id: categoryData.id || `cat-${Date.now()}`,
+      code,
+      name_fr: categoryData.name_fr || 'Nouvelle Catégorie',
+      name_ar: categoryData.name_ar || 'تصنيف جديد',
+      description: categoryData.description || '',
+      color: categoryData.color || '#E99B39',
+      icon: categoryData.icon || 'Package',
+      is_active: categoryData.is_active !== undefined ? categoryData.is_active : true,
+      created_at: new Date().toISOString(),
+    };
+
+    this.state.categories.push(newCat);
+    this.save();
+
+    safeSupabaseSync(
+      supabase.from('categories').insert([{
+        code: newCat.code,
+        name_fr: newCat.name_fr,
+        name_ar: newCat.name_ar,
+        description: newCat.description,
+        color: newCat.color,
+        icon: newCat.icon,
+        is_active: newCat.is_active,
+      }])
+    );
+
+    if (userId && userName && userRole) {
+      this.addAuditLog({
+        user_id: userId,
+        user_name: userName,
+        user_role: userRole,
+        action: 'CATEGORY_CREATE',
+        entity_type: 'categories',
+        entity_id: newCat.id,
+        new_values: newCat as unknown as Record<string, unknown>,
+        notes: `Création de la catégorie ${newCat.name_fr} (${newCat.code})`,
+      });
+    }
+
+    return newCat;
+  }
+
+  public deleteCategory(id: string, userId?: string, userName?: string, userRole?: RoleType): { success: boolean; message?: string } {
+    this.load();
+    const cat = this.state.categories.find(c => c.id === id);
+    if (!cat) return { success: false, message: 'Catégorie introuvable.' };
+
+    const associatedCount = this.state.products.filter(p => p.category_id === id || p.category_id === cat.code).length;
+    if (associatedCount > 0) {
+      throw new Error(`Impossible de supprimer cette catégorie car ${associatedCount} produit(s) y sont rattachés. Déplacez d'abord ces produits vers une autre catégorie.`);
+    }
+
+    this.state.categories = this.state.categories.filter(c => c.id !== id);
+    this.save();
+
+    safeSupabaseSync(
+      supabase.from('categories').delete().eq('id', id)
+    );
+
+    if (userId && userName && userRole) {
+      this.addAuditLog({
+        user_id: userId,
+        user_name: userName,
+        user_role: userRole,
+        action: 'CATEGORY_DELETE',
+        entity_type: 'categories',
+        entity_id: id,
+        notes: `Suppression de la catégorie ${cat.name_fr}`,
+      });
+    }
+
+    return { success: true };
   }
 
   public getSuppliers(): Supplier[] {
