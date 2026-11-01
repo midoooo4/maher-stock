@@ -40,11 +40,40 @@ export default function AdminDashboardPage() {
   const { t, language } = useTranslation();
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
 
-  const products = stockService.getProducts();
-  const categories = stockService.getCategories();
-  const requests = stockService.getStockRequests();
-  const movements = stockService.getStockMovements();
-  const adjustments = stockService.getStockAdjustments();
+  const [products, setProducts] = useState(stockService.getProducts());
+  const [categories, setCategories] = useState(stockService.getCategories());
+  const [requests, setRequests] = useState(stockService.getStockRequests());
+  const [movements, setMovements] = useState(stockService.getStockMovements());
+  const [adjustments, setAdjustments] = useState(stockService.getStockAdjustments());
+
+  const refreshData = () => {
+    setProducts(stockService.getProducts());
+    setCategories(stockService.getCategories());
+    setRequests(stockService.getStockRequests());
+    setMovements(stockService.getStockMovements());
+    setAdjustments(stockService.getStockAdjustments());
+  };
+
+  React.useEffect(() => {
+    refreshData();
+    stockService.syncWithSupabase().then(() => {
+      refreshData();
+    });
+
+    const handleUpdate = () => refreshData();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    const interval = setInterval(() => {
+      refreshData();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   // 8 KPIs
   const totalProducts = products.length;

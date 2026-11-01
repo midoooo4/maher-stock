@@ -13,6 +13,13 @@ import {
   AuditLog, 
   RoleType 
 } from '../supabase/types';
+import { supabase } from '../supabase/client';
+
+function safeSupabaseSync(task: PromiseLike<any> | Promise<any>) {
+  Promise.resolve(task).catch((err) => {
+    console.warn('Supabase sync note:', err);
+  });
+}
 
 const STORAGE_KEY = 'maher_stock_database_v1';
 
@@ -50,7 +57,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 140.0,
     supplier_id: 'sup-2',
     location: 'Chambre Économat - Rayon C-1',
-    image_url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&q=80',
     qr_code_data: 'MAHER-PRD-CAF-001',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -70,7 +77,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 7.5,
     supplier_id: 'sup-1',
     location: 'Chambre Économat - Rayon A-2',
-    image_url: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=600&q=80',
     qr_code_data: 'MAHER-PRD-SUC-002',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -90,7 +97,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 18.0,
     supplier_id: 'sup-1',
     location: 'Chambre Économat - Rayon A-1 (Sol)',
-    image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&q=80',
     qr_code_data: 'MAHER-PRD-HUI-003',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -110,7 +117,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 6.0,
     supplier_id: 'sup-1',
     location: 'Chambre Économat - Rayon A-3',
-    image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80',
     qr_code_data: 'MAHER-PRD-FAR-004',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -130,7 +137,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 65.0,
     supplier_id: 'sup-3',
     location: 'Local Technique Piscine / Entretien',
-    image_url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=600&q=80',
     qr_code_data: 'MAHER-PRD-CHL-005',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -150,7 +157,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 95.0,
     supplier_id: 'sup-3',
     location: 'Chambre Économat - Rayon D-2',
-    image_url: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=600&q=80',
     qr_code_data: 'MAHER-PRD-SER-006',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -170,7 +177,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 42.0,
     supplier_id: 'sup-3',
     location: 'Chambre Économat - Rayon E-1',
-    image_url: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&q=80',
     qr_code_data: 'MAHER-PRD-DET-007',
     is_active: true,
     created_at: new Date().toISOString(),
@@ -190,8 +197,148 @@ export const INITIAL_PRODUCTS: Product[] = [
     purchase_price: 24.0,
     supplier_id: 'sup-1',
     location: 'Chambre Économat - Rayon B-1',
-    image_url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=300&q=80',
+    image_url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&q=80',
     qr_code_data: 'MAHER-PRD-EAU-008',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-lait',
+    code: 'PRD-LAI-009',
+    name_fr: 'Lait Entier UHT Brique 1L Pack 12',
+    name_ar: 'حليب كامل الدسم 1 لتر حزمة 12',
+    description: 'Lait entier pasteurisé pour préparations café, cappuccino et cuisine',
+    category_id: 'cat-alim',
+    unit: 'paquet',
+    physical_stock: 20.0,
+    reserved_stock: 0.0,
+    min_stock: 8.0,
+    purchase_price: 110.0,
+    supplier_id: 'sup-1',
+    location: 'Chambre Froide Positive',
+    image_url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-LAI-009',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-the',
+    code: 'PRD-THE-010',
+    name_fr: 'Thé Vert Gunpowder Traditionnel 1kg',
+    name_ar: 'شاي أخضر صيني بارود ممتاز 1 كغ',
+    description: 'Grains de thé vert de premier choix pour thé à la menthe marocain',
+    category_id: 'cat-cafe',
+    unit: 'kg',
+    physical_stock: 16.0,
+    reserved_stock: 0.0,
+    min_stock: 6.0,
+    purchase_price: 75.0,
+    supplier_id: 'sup-2',
+    location: 'Chambre Économat - Rayon C-2',
+    image_url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-THE-010',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-riz',
+    code: 'PRD-RIZ-011',
+    name_fr: 'Riz Basmati Extra Long Grain Sac 5kg',
+    name_ar: 'أرز بسمتي حبة طويلة كيس 5 كغ',
+    description: 'Riz supérieur pour garnitures plats chauds restaurant et banquet',
+    category_id: 'cat-alim',
+    unit: 'kg',
+    physical_stock: 25.0,
+    reserved_stock: 0.0,
+    min_stock: 10.0,
+    purchase_price: 18.5,
+    supplier_id: 'sup-1',
+    location: 'Chambre Économat - Rayon A-4',
+    image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-RIZ-011',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-tomate',
+    code: 'PRD-TOM-012',
+    name_fr: 'Double Concentré de Tomates Boîte 800g',
+    name_ar: 'معجون طماطم مركز علبة 800 غ',
+    description: 'Sauces de base, tajines, pizzas et plats méditerranéens',
+    category_id: 'cat-cuisine',
+    unit: 'piece',
+    physical_stock: 40.0,
+    reserved_stock: 0.0,
+    min_stock: 15.0,
+    purchase_price: 14.0,
+    supplier_id: 'sup-1',
+    location: 'Chambre Économat - Rayon B-3',
+    image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-TOM-012',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-savon',
+    code: 'PRD-SAV-013',
+    name_fr: 'Savon Liquide Mains Antibactérien Bidon 5L',
+    name_ar: 'صابون سائل للأيدي مضاد للبكتيريا 5 لتر',
+    description: 'Recharge distributeurs sanitaires restaurant, vestiaires et piscine',
+    category_id: 'cat-entretien',
+    unit: 'l',
+    physical_stock: 10.0,
+    reserved_stock: 0.0,
+    min_stock: 4.0,
+    purchase_price: 38.0,
+    supplier_id: 'sup-3',
+    location: 'Chambre Économat - Rayon E-2',
+    image_url: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-SAV-013',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-barquette',
+    code: 'PRD-BAR-014',
+    name_fr: 'Barquettes Alimentaires Kraft Emporter x100',
+    name_ar: 'علب طعام كرافت للوجبات السريعة 100 حبة',
+    description: 'Emballages recyclables pour snacks piscine et plats à emporter',
+    category_id: 'cat-emballage',
+    unit: 'paquet',
+    physical_stock: 12.0,
+    reserved_stock: 0.0,
+    min_stock: 5.0,
+    purchase_price: 85.0,
+    supplier_id: 'sup-3',
+    location: 'Chambre Économat - Rayon F-1',
+    image_url: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-BAR-014',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'prod-film',
+    code: 'PRD-FIL-015',
+    name_fr: 'Film Étirable Alimentaire Pro Rouleau 300m',
+    name_ar: 'غشاء بلاستيكي غذائي احترافي رول 300 متر',
+    description: 'Film de conservation étanche pour chambre froide cuisine',
+    category_id: 'cat-emballage',
+    unit: 'piece',
+    physical_stock: 15.0,
+    reserved_stock: 0.0,
+    min_stock: 6.0,
+    purchase_price: 45.0,
+    supplier_id: 'sup-3',
+    location: 'Chambre Économat - Rayon F-2',
+    image_url: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=600&q=80',
+    qr_code_data: 'MAHER-PRD-FIL-015',
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -233,6 +380,7 @@ class StockDatabaseService {
     this.state = getInitialState();
     if (typeof window !== 'undefined') {
       this.load();
+      Promise.resolve(this.syncWithSupabase()).catch(() => {});
     }
   }
 
@@ -241,12 +389,23 @@ class StockDatabaseService {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
         this.state = JSON.parse(data);
+        // Ensure all initial products exist in state
+        if (!this.state.products || this.state.products.length < INITIAL_PRODUCTS.length) {
+          const existingCodes = new Set((this.state.products || []).map(p => p.code));
+          INITIAL_PRODUCTS.forEach(ip => {
+            if (!existingCodes.has(ip.code)) {
+              this.state.products.push(ip);
+            }
+          });
+          this.save();
+        }
       } else {
         this.save();
       }
     } catch (e) {
       console.warn('Could not parse localStorage database, resetting to initial state', e);
       this.state = getInitialState();
+      this.save();
     }
   }
 
@@ -254,9 +413,67 @@ class StockDatabaseService {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        window.dispatchEvent(new CustomEvent('maher_stock_updated'));
       } catch (e) {
         console.error('Error saving stock state to localStorage', e);
       }
+    }
+  }
+
+  public async syncWithSupabase() {
+    if (typeof window === 'undefined') return;
+    try {
+      const [prodsRes, reqsRes, supsRes] = await Promise.all([
+        supabase.from('products').select('*'),
+        supabase.from('stock_requests').select('*, items:stock_request_items(*)'),
+        supabase.from('suppliers').select('*'),
+      ]);
+
+      let changed = false;
+
+      if (prodsRes.data && prodsRes.data.length > 0) {
+        // Merge Supabase products
+        const supProds = prodsRes.data as Product[];
+        const prodMap = new Map(this.state.products.map(p => [p.code, p]));
+        supProds.forEach(sp => {
+          prodMap.set(sp.code, { ...prodMap.get(sp.code), ...sp });
+        });
+        this.state.products = Array.from(prodMap.values());
+        changed = true;
+      }
+
+      if (supsRes.data && supsRes.data.length > 0) {
+        this.state.suppliers = supsRes.data as Supplier[];
+        changed = true;
+      }
+
+      if (reqsRes.data && reqsRes.data.length > 0) {
+        // Merge Supabase stock requests
+        const reqMap = new Map(this.state.stock_requests.map(r => [r.request_number, r]));
+        reqsRes.data.forEach((sr: any) => {
+          const existing = reqMap.get(sr.request_number);
+          if (!existing) {
+            this.state.stock_requests.unshift(sr);
+            changed = true;
+          } else if (existing.status !== sr.status) {
+            existing.status = sr.status;
+            existing.approved_by = sr.approved_by;
+            existing.approved_at = sr.approved_at;
+            existing.rejected_by = sr.rejected_by;
+            existing.rejected_at = sr.rejected_at;
+            existing.rejection_reason = sr.rejection_reason;
+            existing.delivered_by = sr.delivered_by;
+            existing.delivered_at = sr.delivered_at;
+            changed = true;
+          }
+        });
+      }
+
+      if (changed) {
+        this.save();
+      }
+    } catch (err) {
+      console.warn('Supabase sync note:', err);
     }
   }
 
@@ -290,6 +507,69 @@ class StockDatabaseService {
   public getSuppliers(): Supplier[] {
     this.load();
     return this.state.suppliers;
+  }
+
+  public saveSupplier(supplierData: Partial<Supplier>, userId?: string, userName?: string, userRole?: RoleType): Supplier {
+    this.load();
+    if (supplierData.id) {
+      const idx = this.state.suppliers.findIndex(s => s.id === supplierData.id);
+      if (idx !== -1) {
+        this.state.suppliers[idx] = {
+          ...this.state.suppliers[idx],
+          ...supplierData,
+        };
+        this.save();
+        safeSupabaseSync(
+          supabase.from('suppliers').update({
+            name: supplierData.name,
+            phone: supplierData.phone,
+            email: supplierData.email,
+            address: supplierData.address,
+            city: supplierData.city,
+            notes: supplierData.notes,
+          }).eq('id', supplierData.id)
+        );
+        return this.state.suppliers[idx];
+      }
+    }
+
+    const newSup: Supplier = {
+      id: supplierData.id || `sup-${Date.now()}`,
+      name: supplierData.name || 'Nouveau Fournisseur',
+      phone: supplierData.phone,
+      email: supplierData.email,
+      address: supplierData.address,
+      city: supplierData.city || 'Casablanca',
+      notes: supplierData.notes,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+
+    this.state.suppliers.push(newSup);
+    this.save();
+
+    safeSupabaseSync(
+      supabase.from('suppliers').insert([{
+        name: newSup.name,
+        phone: newSup.phone,
+        email: newSup.email,
+        address: newSup.address,
+        city: newSup.city,
+        notes: newSup.notes,
+        is_active: true,
+      }])
+    );
+
+    return newSup;
+  }
+
+  public deleteSupplier(id: string): void {
+    this.load();
+    this.state.suppliers = this.state.suppliers.filter(s => s.id !== id);
+    this.save();
+    safeSupabaseSync(
+      supabase.from('suppliers').delete().eq('id', id)
+    );
   }
 
   public getStockEntries(): StockEntry[] {
@@ -383,6 +663,22 @@ class StockDatabaseService {
       });
 
       this.save();
+      if (typeof window !== 'undefined') {
+        safeSupabaseSync(
+          supabase.from('products').upsert([{
+            code: updated.code,
+            name_fr: updated.name_fr,
+            name_ar: updated.name_ar,
+            description: updated.description,
+            unit: updated.unit,
+            purchase_price: updated.purchase_price,
+            min_stock: updated.min_stock,
+            location: updated.location,
+            image_url: updated.image_url,
+            is_active: updated.is_active,
+          }], { onConflict: 'code' })
+        );
+      }
       return updated;
     } else {
       // Create new
@@ -421,6 +717,22 @@ class StockDatabaseService {
       });
 
       this.save();
+      if (typeof window !== 'undefined') {
+        safeSupabaseSync(
+          supabase.from('products').upsert([{
+            code: newProduct.code,
+            name_fr: newProduct.name_fr,
+            name_ar: newProduct.name_ar,
+            description: newProduct.description,
+            unit: newProduct.unit,
+            purchase_price: newProduct.purchase_price,
+            min_stock: newProduct.min_stock,
+            location: newProduct.location,
+            image_url: newProduct.image_url,
+            is_active: newProduct.is_active,
+          }], { onConflict: 'code' })
+        );
+      }
       return newProduct;
     }
   }
@@ -613,6 +925,35 @@ class StockDatabaseService {
     });
 
     this.save();
+
+    // Sync to Supabase in background
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        Promise.resolve(
+          supabase.from('stock_requests').insert([{
+            request_number: requestNumber,
+            employee_id: employeeId,
+            department,
+            status: 'PENDING',
+            reason,
+            notes: notes || null
+          }]).select()
+        ).then(({ data, error }) => {
+          if (!error && data && data[0]) {
+            const reqDbId = (data[0] as any).id;
+            const itemsPayload = requestItems.map(it => ({
+              request_id: reqDbId,
+              product_id: it.product_id,
+              requested_quantity: it.requested_quantity,
+              unit: it.unit,
+              status: 'PENDING'
+            }));
+            safeSupabaseSync(supabase.from('stock_request_items').insert(itemsPayload));
+          }
+        })
+      );
+    }
+
     return newRequest;
   }
 
@@ -696,6 +1037,15 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('stock_requests').update({
+          status: 'APPROVED',
+          approved_by: userId,
+          approved_at: new Date().toISOString(),
+        }).eq('request_number', request.request_number)
+      );
+    }
     return request;
   }
 
@@ -759,6 +1109,16 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('stock_requests').update({
+          status: 'REJECTED',
+          rejection_reason: reason,
+          rejected_by: userId,
+          rejected_at: new Date().toISOString(),
+        }).eq('request_number', request.request_number)
+      );
+    }
     return request;
   }
 
@@ -808,6 +1168,15 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('stock_requests').update({
+          status: 'READY',
+          prepared_by: userId,
+          prepared_at: new Date().toISOString(),
+        }).eq('request_number', request.request_number)
+      );
+    }
     return request;
   }
 
@@ -936,6 +1305,15 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('stock_requests').update({
+          status: 'DELIVERED',
+          delivered_by: userId,
+          delivered_at: new Date().toISOString(),
+        }).eq('request_number', request.request_number)
+      );
+    }
     return request;
   }
 
@@ -994,6 +1372,14 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('stock_requests').update({
+          status: 'CANCELLED',
+          rejection_reason: reason || 'Annulé par l\'utilisateur',
+        }).eq('request_number', request.request_number)
+      );
+    }
     return request;
   }
 

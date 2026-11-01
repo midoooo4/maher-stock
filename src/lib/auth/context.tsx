@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Profile, RoleType } from '../supabase/types';
+import { supabase } from '../supabase/client';
 
 interface AuthContextType {
   user: Profile | null;
@@ -12,14 +13,16 @@ interface AuthContextType {
   logout: () => void;
   switchUser: (profile: Profile) => void;
   allUsers: Profile[];
+  addUser: (profile: Omit<Profile, 'id' | 'created_at' | 'updated_at'>) => Promise<Profile>;
+  updateUser: (id: string, updates: Partial<Profile>) => Promise<Profile>;
+  deleteUser: (id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initial known profiles for Complexe Maher
 export const DEMO_PROFILES: Profile[] = [
   {
-    id: 'u-admin-01',
+    id: '4467c93c-183f-40cf-80ca-01e852946bfe',
     email: 'admin@complexe-maher.ma',
     full_name: 'M. Maher (Propriétaire)',
     role: 'ADMIN',
@@ -30,7 +33,7 @@ export const DEMO_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'u-resp-01',
+    id: '5c7f6379-0685-4d14-b487-d520f9bf499e',
     email: 'economat@complexe-maher.ma',
     full_name: 'Rachid - Responsable Économat',
     role: 'RESPONSABLE',
@@ -42,7 +45,7 @@ export const DEMO_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'u-emp-cuisine',
+    id: '7bff4c1e-58ae-4ed6-93be-076c5896009d',
     email: 'chef.ahmed@complexe-maher.ma',
     full_name: 'Ahmed - Chef de Cuisine',
     role: 'EMPLOYEE',
@@ -53,7 +56,7 @@ export const DEMO_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'u-emp-cafe',
+    id: '1acf7b74-8300-49d6-abf7-a2c022322923',
     email: 'barista.omar@complexe-maher.ma',
     full_name: 'Omar - Chef Barista & Café',
     role: 'EMPLOYEE',
@@ -64,7 +67,7 @@ export const DEMO_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'u-emp-piscine',
+    id: '659341f9-3b68-42db-948f-612c0050616a',
     email: 'piscine.karim@complexe-maher.ma',
     full_name: 'Karim - Responsable Piscine',
     role: 'EMPLOYEE',
@@ -74,33 +77,92 @@ export const DEMO_PROFILES: Profile[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
+  {
+    id: '748b3bcb-f8c5-4e33-bce1-725678872ec9',
+    email: 'salma.salle@complexe-maher.ma',
+    full_name: 'Salma - Maître d Hôtel Salle',
+    role: 'EMPLOYEE',
+    department: 'Restaurant',
+    phone: '+212 6 66 00 00 06',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2e61e79c-4980-4054-a59d-92aa147e0969',
+    email: 'hassan.entretien@complexe-maher.ma',
+    full_name: 'Hassan - Chef Entretien & Hygiène',
+    role: 'EMPLOYEE',
+    department: 'Entretien',
+    phone: '+212 6 67 00 00 07',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
+
+const USERS_STORAGE_KEY = 'maher_all_users_list_v2';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
+  const [allUsers, setAllUsers] = useState<Profile[]>(DEMO_PROFILES);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
 
+  // Load users and current active session
   useEffect(() => {
-    // Check saved session in localStorage
-    const savedUser = localStorage.getItem('maher_active_user');
-    if (savedUser) {
+    const loadStored = () => {
       try {
-        const parsed = JSON.parse(savedUser);
-        setUser(parsed);
+        const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+        if (storedUsers) {
+          const parsed = JSON.parse(storedUsers);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllUsers(parsed);
+          }
+        }
       } catch (e) {
-        console.error('Error loading saved session', e);
+        console.warn('Error reading stored users', e);
       }
-    }
-    setIsLoading(false);
+
+      const savedUser = localStorage.getItem('maher_active_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+        } catch (e) {
+          console.error('Error loading saved session', e);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadStored();
+
+    // Also fetch latest profiles from Supabase in background
+    Promise.resolve(supabase.from('profiles').select('*'))
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          const merged = [...DEMO_PROFILES];
+          data.forEach((p: Profile) => {
+            const idx = merged.findIndex((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase());
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...p };
+            } else {
+              merged.push(p);
+            }
+          });
+          setAllUsers(merged);
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+        }
+      })
+      .catch((err) => console.warn('Supabase profiles fetch note:', err));
   }, []);
 
   const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
-    
-    // Find matching profile
-    const found = DEMO_PROFILES.find(p => p.email.toLowerCase() === normalizedEmail);
+
+    const found = allUsers.find((p) => p.email.toLowerCase() === normalizedEmail);
     if (!found) {
       setIsLoading(false);
       return { success: false, error: 'Identifiant ou email non reconnu pour Complexe Maher.' };
@@ -115,7 +177,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('maher_active_user', JSON.stringify(found));
     setIsLoading(false);
 
-    // Redirect based on role
     if (found.role === 'ADMIN') {
       router.push('/admin/dashboard');
     } else if (found.role === 'RESPONSABLE') {
@@ -145,6 +206,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addUser = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>): Promise<Profile> => {
+    const newProfile: Profile = {
+      ...profileData,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const updated = [...allUsers, newProfile];
+    setAllUsers(updated);
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updated));
+
+    // Try sync with Supabase
+    try {
+      await supabase.from('profiles').insert([{
+        id: newProfile.id,
+        email: newProfile.email,
+        full_name: newProfile.full_name,
+        role: newProfile.role,
+        department: newProfile.department || null,
+        phone: newProfile.phone || null,
+        is_active: newProfile.is_active ?? true,
+      }]);
+    } catch (e) {
+      console.warn('Supabase profile sync note:', e);
+    }
+
+    return newProfile;
+  };
+
+  const updateUser = async (id: string, updates: Partial<Profile>): Promise<Profile> => {
+    let updatedProfile: Profile | null = null;
+    const updated = allUsers.map((u) => {
+      if (u.id === id) {
+        updatedProfile = {
+          ...u,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+        return updatedProfile;
+      }
+      return u;
+    });
+
+    if (!updatedProfile) throw new Error('Utilisateur non trouvé');
+
+    setAllUsers(updated);
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updated));
+
+    // If active user was updated, refresh active user session
+    if (user && user.id === id) {
+      setUser(updatedProfile);
+      localStorage.setItem('maher_active_user', JSON.stringify(updatedProfile));
+    }
+
+    // Try sync with Supabase
+    try {
+      await supabase.from('profiles').update({
+        full_name: updates.full_name,
+        email: updates.email,
+        role: updates.role,
+        department: updates.department,
+        phone: updates.phone,
+        is_active: updates.is_active,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase profile update note:', e);
+    }
+
+    return updatedProfile;
+  };
+
+  const deleteUser = async (id: string): Promise<void> => {
+    const updated = allUsers.filter((u) => u.id !== id);
+    setAllUsers(updated);
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updated));
+
+    try {
+      await supabase.from('profiles').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase profile delete note:', e);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -154,7 +300,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         switchUser,
-        allUsers: DEMO_PROFILES,
+        allUsers,
+        addUser,
+        updateUser,
+        deleteUser,
       }}
     >
       {children}

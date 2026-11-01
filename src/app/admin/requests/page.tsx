@@ -27,7 +27,7 @@ export default function AdminRequestsPage() {
   const { t, language } = useTranslation();
   const { user, role } = useAuth();
 
-  const [requests, setRequests] = useState<StockRequest[]>(stockService.getStockRequests());
+  const [requests, setRequests] = useState<StockRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -47,6 +47,28 @@ export default function AdminRequestsPage() {
   const refreshRequests = () => {
     setRequests(stockService.getStockRequests());
   };
+
+  React.useEffect(() => {
+    refreshRequests();
+
+    stockService.syncWithSupabase().then(() => {
+      refreshRequests();
+    });
+
+    const handleUpdate = () => refreshRequests();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    const interval = setInterval(() => {
+      refreshRequests();
+    }, 3000);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleOpenApproval = (req: StockRequest) => {
     setErrorMsg(null);

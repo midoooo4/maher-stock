@@ -25,9 +25,36 @@ export default function ManagerDashboardPage() {
   const { t } = useTranslation();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-  const requests = stockService.getStockRequests();
-  const products = stockService.getProducts();
-  const movements = stockService.getStockMovements();
+  const [requests, setRequests] = useState(stockService.getStockRequests());
+  const [products, setProducts] = useState(stockService.getProducts());
+  const [movements, setMovements] = useState(stockService.getStockMovements());
+
+  const refreshData = () => {
+    setRequests(stockService.getStockRequests());
+    setProducts(stockService.getProducts());
+    setMovements(stockService.getStockMovements());
+  };
+
+  React.useEffect(() => {
+    refreshData();
+    stockService.syncWithSupabase().then(() => {
+      refreshData();
+    });
+
+    const handleUpdate = () => refreshData();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    const interval = setInterval(() => {
+      refreshData();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   const pendingRequests = requests.filter(r => r.status === 'PENDING');
   const readyRequests = requests.filter(r => r.status === 'APPROVED' || r.status === 'READY');

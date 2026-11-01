@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { stockService } from '@/lib/db/stock-service';
 import { Product } from '@/lib/supabase/types';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ProductQRCode } from '@/components/qr/ProductQRCode';
@@ -13,10 +13,31 @@ import { Package, Search, QrCode, AlertTriangle, Camera } from 'lucide-react';
 
 export default function ManagerProductsPage() {
   const { t } = useTranslation();
-  const [products] = useState<Product[]>(stockService.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [qrModalProduct, setQrModalProduct] = useState<Product | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const refreshProducts = () => {
+    setProducts(stockService.getProducts());
+  };
+
+  useEffect(() => {
+    refreshProducts();
+
+    stockService.syncWithSupabase().then(() => {
+      refreshProducts();
+    });
+
+    const handleUpdate = () => refreshProducts();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const filtered = products.filter(
     (p) =>
@@ -31,7 +52,7 @@ export default function ManagerProductsPage() {
         <div>
           <h2 className="text-xl font-bold text-brand-navy tracking-tight flex items-center gap-2">
             <Package className="w-5 h-5 text-brand-orange" />
-            <span>Articles de l'Économat</span>
+            <span>Articles de l&apos;Économat (Visualisation par Photo)</span>
           </h2>
           <p className="text-xs text-gray-500 font-medium">
             Consultation des stocks physiques réels, stocks réservés et impression des étiquettes QR
@@ -67,7 +88,7 @@ export default function ManagerProductsPage() {
             <thead className="bg-slate-50 border-b border-gray-100 text-slate-500 uppercase font-semibold text-[11px]">
               <tr>
                 <th className="py-3 px-4">Code</th>
-                <th className="py-3 px-4">Désignation</th>
+                <th className="py-3 px-4">Photo & Article</th>
                 <th className="py-3 px-4 text-center">Stock Physique</th>
                 <th className="py-3 px-4 text-center">Stock Réservé</th>
                 <th className="py-3 px-4 text-center">Stock Disponible</th>
@@ -83,8 +104,23 @@ export default function ManagerProductsPage() {
                   <tr key={p.id} className="hover:bg-slate-50/70">
                     <td className="py-3 px-4 font-mono font-bold text-brand-navy">{p.code}</td>
                     <td className="py-3 px-4">
-                      <p className="font-bold text-brand-navy">{p.name_fr}</p>
-                      <p className="text-[11px] text-gray-400 font-arabic">{p.name_ar}</p>
+                      <div className="flex items-center gap-3">
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.name_fr}
+                            className="w-10 h-10 rounded-xl object-cover border border-gray-200 flex-shrink-0 shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-gray-200 flex items-center justify-center flex-shrink-0 text-slate-400">
+                            <Package className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-brand-navy">{p.name_fr}</p>
+                          <p className="text-[11px] text-gray-400 font-arabic">{p.name_ar}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-center font-bold text-brand-navy">
                       {p.physical_stock} {p.unit}
@@ -95,22 +131,25 @@ export default function ManagerProductsPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold ${
-                        isLow ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold ${
+                          isLow ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
                         {isLow && <AlertTriangle className="w-3 h-3" />}
                         {available} {p.unit}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-500">{p.location || 'Chambre économat'}</td>
+                    <td className="py-3 px-4 text-gray-500 font-medium">{p.location || 'Chambre Économat'}</td>
                     <td className="py-3 px-4 text-center">
-                      <button
+                      <Button
                         onClick={() => setQrModalProduct(p)}
-                        className="p-1.5 text-gray-400 hover:text-brand-turquoise rounded-lg hover:bg-slate-100"
-                        title="Imprimer QR Code"
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<QrCode className="w-3.5 h-3.5 text-brand-orange" />}
                       >
-                        <QrCode className="w-4 h-4" />
-                      </button>
+                        QR Code
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -120,22 +159,27 @@ export default function ManagerProductsPage() {
         </div>
       </Card>
 
+      {/* QR Code Modal */}
       {qrModalProduct && (
         <Modal
           isOpen={!!qrModalProduct}
           onClose={() => setQrModalProduct(null)}
-          title={`Étiquette QR - ${qrModalProduct.name_fr}`}
-          subtitle="Complexe Maher Stock"
+          title={`QR Code - ${qrModalProduct.name_fr}`}
+          subtitle="Étiquette officielle d'identification économat"
           maxWidth="sm"
         >
           <ProductQRCode product={qrModalProduct} size={180} />
         </Modal>
       )}
 
+      {/* Scanner Modal */}
       <QRScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
-        onProductScanned={(p) => setQrModalProduct(p)}
+        onProductScanned={(p) => {
+          setSearch(p.code);
+          setIsScannerOpen(false);
+        }}
       />
     </div>
   );

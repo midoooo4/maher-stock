@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
 import { Product } from '@/lib/supabase/types';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -15,26 +15,42 @@ import {
   Package,
   Search,
   Plus,
-  Filter,
-  Download,
   QrCode,
   Edit2,
   AlertTriangle,
   FileSpreadsheet,
   FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 
+const SUGGESTED_IMAGES = [
+  { label: 'Café Grains', url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&q=80' },
+  { label: 'Sucre', url: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=600&q=80' },
+  { label: 'Huile', url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&q=80' },
+  { label: 'Farine', url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80' },
+  { label: 'Chlore', url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=600&q=80' },
+  { label: 'Serviettes', url: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=600&q=80' },
+  { label: 'Détergent', url: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&q=80' },
+  { label: 'Eau Minérale', url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&q=80' },
+  { label: 'Lait UHT', url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&q=80' },
+  { label: 'Thé Vert', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&q=80' },
+  { label: 'Riz Basmati', url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&q=80' },
+  { label: 'Tomates Boîte', url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&q=80' },
+  { label: 'Savon Mains', url: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=600&q=80' },
+  { label: 'Emballage Kraft', url: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&q=80' },
+];
+
 export default function AdminProductsPage() {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { user, role } = useAuth();
 
-  const [products, setProducts] = useState<Product[]>(stockService.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
   const categories = stockService.getCategories();
   const suppliers = stockService.getSuppliers();
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all'); // all, low_stock, active, inactive
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Modal states
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
@@ -53,11 +69,29 @@ export default function AdminProductsPage() {
     purchase_price: 0,
     supplier_id: suppliers[0]?.id || '',
     location: '',
+    image_url: '',
   });
 
   const refreshProducts = () => {
     setProducts(stockService.getProducts());
   };
+
+  useEffect(() => {
+    refreshProducts();
+
+    stockService.syncWithSupabase().then(() => {
+      refreshProducts();
+    });
+
+    const handleUpdate = () => refreshProducts();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
@@ -72,6 +106,7 @@ export default function AdminProductsPage() {
       purchase_price: 0,
       supplier_id: suppliers[0]?.id || '',
       location: '',
+      image_url: '',
     });
     setIsAddEditOpen(true);
   };
@@ -89,6 +124,7 @@ export default function AdminProductsPage() {
       purchase_price: prod.purchase_price,
       supplier_id: prod.supplier_id || '',
       location: prod.location || '',
+      image_url: prod.image_url || '',
     });
     setIsAddEditOpen(true);
   };
@@ -112,7 +148,7 @@ export default function AdminProductsPage() {
   };
 
   // Filtered Products
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name_fr.toLowerCase().includes(search.toLowerCase()) ||
       p.name_ar.includes(search) ||
@@ -122,7 +158,7 @@ export default function AdminProductsPage() {
 
     let matchesStatus = true;
     if (selectedStatus === 'low_stock') {
-      matchesStatus = (p.physical_stock - p.reserved_stock) <= p.min_stock;
+      matchesStatus = p.physical_stock - p.reserved_stock <= p.min_stock;
     } else if (selectedStatus === 'active') {
       matchesStatus = p.is_active;
     } else if (selectedStatus === 'inactive') {
@@ -132,9 +168,8 @@ export default function AdminProductsPage() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  // Export handlers
   const handleExportCSV = () => {
-    const exportData = filteredProducts.map(p => ({
+    const exportData = filteredProducts.map((p) => ({
       code: p.code,
       name_fr: p.name_fr,
       name_ar: p.name_ar,
@@ -164,8 +199,8 @@ export default function AdminProductsPage() {
   };
 
   const handleExportPDF = () => {
-    const totalVal = filteredProducts.reduce((acc, p) => acc + (p.physical_stock * p.purchase_price), 0);
-    const rows = filteredProducts.map(p => [
+    const totalVal = filteredProducts.reduce((acc, p) => acc + p.physical_stock * p.purchase_price, 0);
+    const rows = filteredProducts.map((p) => [
       p.code,
       p.name_fr,
       p.category?.name_fr || '',
@@ -191,10 +226,10 @@ export default function AdminProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-brand-navy tracking-tight">
-            {t('nav_products')}
+            {t('nav_products')} & Fiches Articles
           </h2>
           <p className="text-xs text-gray-500 font-medium">
-            Fiches articles, codes QR, seuils d'alerte et valorisation PMP
+            Catalogue visuel, photos des articles, codes QR, seuils d&apos;alerte et valorisation PMP
           </p>
         </div>
 
@@ -249,7 +284,7 @@ export default function AdminProductsPage() {
               <option value="all">Toutes les catégories</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {language === 'ar' ? c.name_ar : c.name_fr}
+                  {c.name_fr} ({c.name_ar})
                 </option>
               ))}
             </select>
@@ -262,9 +297,9 @@ export default function AdminProductsPage() {
               className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-orange text-gray-700"
             >
               <option value="all">Tous les statuts</option>
-              <option value="low_stock">⚠️ Stock faible / Alerte</option>
-              <option value="active">Actifs uniquement</option>
-              <option value="inactive">Désactivés</option>
+              <option value="low_stock">⚠️ Alerte Stock Faible / Rupture</option>
+              <option value="active">Actif en commande</option>
+              <option value="inactive">Désactivé / Archivé</option>
             </select>
           </div>
         </div>
@@ -277,7 +312,7 @@ export default function AdminProductsPage() {
             <thead className="bg-slate-50 border-b border-gray-100 text-slate-500 uppercase font-semibold text-[11px]">
               <tr>
                 <th className="py-3 px-4">Code & QR</th>
-                <th className="py-3 px-4">Désignation</th>
+                <th className="py-3 px-4">Article (Photo & Nom)</th>
                 <th className="py-3 px-4">Catégorie</th>
                 <th className="py-3 px-4 text-center">Stock Physique</th>
                 <th className="py-3 px-4 text-center">Réservé</th>
@@ -314,12 +349,25 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <div>
-                          <p className="font-bold text-brand-navy">{p.name_fr}</p>
-                          <p className="text-[11px] text-gray-400 font-arabic">{p.name_ar}</p>
-                          {p.location && (
-                            <span className="text-[10px] text-gray-400">Empl: {p.location}</span>
+                        <div className="flex items-center gap-3">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name_fr}
+                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 flex-shrink-0 shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-gray-200 flex items-center justify-center flex-shrink-0 text-slate-400">
+                              <Package className="w-6 h-6" />
+                            </div>
                           )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-brand-navy">{p.name_fr}</p>
+                            <p className="text-[11px] text-gray-400 font-arabic">{p.name_ar}</p>
+                            {p.location && (
+                              <span className="text-[10px] text-gray-400">Empl: {p.location}</span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -340,9 +388,11 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          isLow ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            isLow ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
                           {isLow && <AlertTriangle className="w-3 h-3" />}
                           {available} {p.unit}
                         </span>
@@ -353,23 +403,19 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-bold text-brand-navy">
-                        {itemValuation.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                        {itemValuation.toLocaleString('fr-FR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
                         {t('currency')}
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => setQrModalProduct(p)}
-                            className="p-1.5 text-gray-400 hover:text-brand-turquoise rounded-lg hover:bg-slate-100"
-                            title="QR Code"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleOpenEdit(p)}
-                            className="p-1.5 text-gray-400 hover:text-brand-orange rounded-lg hover:bg-slate-100"
-                            title="Modifier la fiche"
+                            className="p-1.5 text-gray-400 hover:text-brand-navy rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Modifier l'article"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
@@ -388,18 +434,18 @@ export default function AdminProductsPage() {
       <Modal
         isOpen={isAddEditOpen}
         onClose={() => setIsAddEditOpen(false)}
-        title={editingProduct ? 'Modifier la fiche produit' : 'Ajouter un nouveau produit'}
-        subtitle="Complexe Maher Stock"
+        title={editingProduct ? `Modifier - ${editingProduct.name_fr}` : 'Nouveau Produit Économat'}
+        subtitle="Renseignez les détails, l'image et les règles d'alerte"
         maxWidth="lg"
       >
         <form onSubmit={handleSaveProduct} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Code Produit"
+              label="Code Article (Unique)"
               value={formData.code}
               onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               required
-              disabled={!!editingProduct} // Code is immutable once created
+              disabled={!!editingProduct}
             />
 
             <div>
@@ -418,7 +464,7 @@ export default function AdminProductsPage() {
             </div>
 
             <Input
-              label="Nom du produit (Français)"
+              label="Nom du produit (Français) *"
               value={formData.name_fr}
               onChange={(e) => setFormData({ ...formData, name_fr: e.target.value })}
               required
@@ -426,7 +472,7 @@ export default function AdminProductsPage() {
             />
 
             <Input
-              label="Nom du produit (Arabe)"
+              label="Nom du produit (Arabe) *"
               value={formData.name_ar}
               onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
               required
@@ -454,7 +500,7 @@ export default function AdminProductsPage() {
             </div>
 
             <Input
-              label="Stock Minimum d'alerte"
+              label="Stock Minimum d'alerte *"
               type="number"
               step="any"
               value={formData.min_stock}
@@ -463,7 +509,7 @@ export default function AdminProductsPage() {
             />
 
             <Input
-              label="Prix d'achat initial (MAD)"
+              label="Prix d'achat unitaire (MAD) *"
               type="number"
               step="0.01"
               value={formData.purchase_price}
@@ -477,6 +523,63 @@ export default function AdminProductsPage() {
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="Ex: Rayon C-1, Étagère haute"
             />
+          </div>
+
+          {/* Product Image Section */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-gray-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-brand-navy flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-brand-orange" />
+                Photo du produit (Chaque produit possède son image)
+              </label>
+              {formData.image_url && (
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
+                  Image configurée
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {formData.image_url ? (
+                <img
+                  src={formData.image_url}
+                  alt="Aperçu"
+                  className="w-16 h-16 rounded-xl object-cover border border-gray-300 shadow-sm flex-shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-slate-200 border border-gray-300 flex items-center justify-center flex-shrink-0 text-slate-400">
+                  <Package className="w-8 h-8" />
+                </div>
+              )}
+
+              <div className="flex-1">
+                <Input
+                  placeholder="Collez l'URL de l'image (https://...)"
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] text-gray-500 font-semibold mb-1.5 uppercase">Images suggérées :</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTED_IMAGES.map((img) => (
+                  <button
+                    key={img.label}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, image_url: img.url })}
+                    className={`text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${
+                      formData.image_url === img.url
+                        ? 'bg-brand-orange text-white border-brand-orange font-bold'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-brand-navy'
+                    }`}
+                  >
+                    {img.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div>
