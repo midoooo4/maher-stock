@@ -1,0 +1,23 @@
+{
+  "name": "MAHER STOCK – Complexe Maher Restaurant & Piscine",
+  "short_name": "Maher Stock",
+  "description": "Gestion intelligente de l'économat et contrôle des stocks pour Complexe Maher",
+  "start_url": "/login",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F5F3",
+  "theme_color": "#151936",
+  "icons": [
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
