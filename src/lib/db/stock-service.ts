@@ -592,6 +592,9 @@ class StockDatabaseService {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, () => {
           this.syncWithSupabase();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_entries' }, () => {
+          this.syncWithSupabase();
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => {
           this.syncWithSupabase();
         })
@@ -606,13 +609,15 @@ class StockDatabaseService {
     this.isSyncing = true;
     this.load();
     try {
-      const [prodsRes, reqsRes, supsRes, catsRes, notifsRes, auditRes] = await Promise.all([
+      const [prodsRes, reqsRes, supsRes, catsRes, notifsRes, auditRes, entriesRes, movsRes] = await Promise.all([
         supabase.from('products').select('*'),
         supabase.from('stock_requests').select('*, items:stock_request_items(*)').order('created_at', { ascending: false }),
         supabase.from('suppliers').select('*'),
         supabase.from('categories').select('*'),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200),
+        supabase.from('stock_entries').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('stock_movements').select('*').order('created_at', { ascending: false }).limit(100),
       ]);
 
       let changed = false;
@@ -733,6 +738,74 @@ class StockDatabaseService {
               Object.assign(existing, sr);
               changed = true;
             }
+          }
+        });
+      }
+
+      // Merge stock entries from Supabase
+      if (entriesRes.data && entriesRes.data.length > 0) {
+        const supEntries = entriesRes.data as StockEntry[];
+        const entryMap = new Map(this.state.stock_entries.map(e => [e.entry_number, e]));
+        supEntries.forEach(se => {
+          const existing = entryMap.get(se.entry_number);
+          if (!existing) {
+            this.state.stock_entries.unshift(se);
+            changed = true;
+          } else {
+            Object.assign(existing, se);
+          }
+        });
+
+        // Auto-push any local unpushed entries to Supabase
+        const supEntryNums = new Set(supEntries.map(e => e.entry_number));
+        const unpushed = this.state.stock_entries.filter(e => !supEntryNums.has(e.entry_number));
+        if (unpushed.length > 0) {
+          const toUpload = unpushed.map(e => ({
+            entry_number: e.entry_number,
+            product_id: this.resolveProductId(e.product_id) || e.product_id,
+            quantity: e.quantity,
+            unit_price: e.unit_price,
+            total_price: e.total_price,
+            supplier_id: this.resolveSupplierId(e.supplier_id),
+            invoice_number: e.invoice_number || null,
+            invoice_photo_url: e.invoice_photo_url || null,
+            received_by: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.received_by)
+              ? e.received_by
+              : '5c7f6379-0685-4d14-b487-d520f9bf499e',
+            notes: e.notes || null,
+          }));
+          safeSupabaseSync(supabase.from('stock_entries').insert(toUpload));
+        }
+      } else if (this.state.stock_entries.length > 0) {
+        // Supabase has 0 entries but local has entries -> push them
+        const toUpload = this.state.stock_entries.map(e => ({
+          entry_number: e.entry_number,
+          product_id: this.resolveProductId(e.product_id) || e.product_id,
+          quantity: e.quantity,
+          unit_price: e.unit_price,
+          total_price: e.total_price,
+          supplier_id: this.resolveSupplierId(e.supplier_id),
+          invoice_number: e.invoice_number || null,
+          invoice_photo_url: e.invoice_photo_url || null,
+          received_by: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.received_by)
+            ? e.received_by
+            : '5c7f6379-0685-4d14-b487-d520f9bf499e',
+          notes: e.notes || null,
+        }));
+        safeSupabaseSync(supabase.from('stock_entries').insert(toUpload));
+      }
+
+      // Merge stock movements from Supabase
+      if (movsRes.data && movsRes.data.length > 0) {
+        const supMovs = movsRes.data as StockMovement[];
+        const movMap = new Map(this.state.stock_movements.map(m => [m.movement_number, m]));
+        supMovs.forEach(sm => {
+          const existing = movMap.get(sm.movement_number);
+          if (!existing) {
+            this.state.stock_movements.unshift(sm);
+            changed = true;
+          } else {
+            Object.assign(existing, sm);
           }
         });
       }
@@ -1366,12 +1439,49 @@ class StockDatabaseService {
 
     this.save();
     if (typeof window !== 'undefined') {
+      const resolvedProdId = this.resolveProductId(product.id) || product.id;
+      const resolvedSupId = this.resolveSupplierId(supplierId);
+      const resolvedUserId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+        ? userId
+        : '5c7f6379-0685-4d14-b487-d520f9bf499e';
+
       safeSupabaseSync(
         supabase.from('products').update({
           physical_stock: product.physical_stock,
           purchase_price: product.purchase_price,
           updated_at: new Date().toISOString(),
         }).eq('code', product.code)
+      );
+
+      safeSupabaseSync(
+        supabase.from('stock_entries').insert([{
+          entry_number: entryNumber,
+          product_id: resolvedProdId,
+          quantity,
+          unit_price: unitPrice,
+          total_price: Number((quantity * unitPrice).toFixed(2)),
+          supplier_id: resolvedSupId || null,
+          invoice_number: invoiceNumber || null,
+          invoice_photo_url: invoicePhotoUrl || null,
+          received_by: resolvedUserId,
+          notes: notes || null,
+        }])
+      );
+
+      safeSupabaseSync(
+        supabase.from('stock_movements').insert([{
+          movement_number: movementNumber,
+          product_id: resolvedProdId,
+          movement_type: 'ENTRY',
+          quantity,
+          stock_before: oldPhysicalStock,
+          stock_after: newStock,
+          unit_cost: unitPrice,
+          total_cost: Number((quantity * unitPrice).toFixed(2)),
+          reference_type: 'ENTRY',
+          performed_by: resolvedUserId,
+          notes: `Livraison ${entryNumber} de ${quantity} ${product.unit}`,
+        }])
       );
     }
     return newEntry;

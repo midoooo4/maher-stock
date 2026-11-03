@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { stockService } from '@/lib/db/stock-service';
 import { StockMovement } from '@/lib/supabase/types';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { exportToCSV, exportToPDF } from '@/lib/export/pdf-csv';
 import {
@@ -12,21 +12,58 @@ import {
   Search,
   FileSpreadsheet,
   FileText,
-  ArrowDownRight,
-  ArrowUpRight,
   RefreshCw,
 } from 'lucide-react';
 
 export default function AdminMovementsPage() {
   const { t } = useTranslation();
-  const [movements] = useState<StockMovement[]>(stockService.getStockMovements());
+  const [movements, setMovements] = useState<StockMovement[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  const refresh = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await stockService.syncWithSupabase();
+    } catch (_) { /* ignore */ }
+    setMovements(stockService.getStockMovements());
+    setLastSync(new Date());
+    setSyncing(false);
+  }, []);
+
+  useEffect(() => {
+    setMovements(stockService.getStockMovements());
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setMovements(stockService.getStockMovements());
+      setLastSync(new Date());
+    };
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    const interval = setInterval(() => {
+      refresh();
+    }, 20000);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
+    };
+  }, [refresh]);
 
   const filtered = movements.filter((m) => {
+    const q = search.toLowerCase();
     const matchesSearch =
-      m.movement_number.toLowerCase().includes(search.toLowerCase()) ||
-      m.product?.name_fr.toLowerCase().includes(search.toLowerCase());
+      m.movement_number.toLowerCase().includes(q) ||
+      (m.product?.name_fr && m.product.name_fr.toLowerCase().includes(q)) ||
+      (m.product?.code && m.product.code.toLowerCase().includes(q)) ||
+      (m.notes && m.notes.toLowerCase().includes(q));
     const matchesType = typeFilter === 'all' || m.movement_type === typeFilter;
     return matchesSearch && matchesType;
   });
@@ -63,22 +100,39 @@ export default function AdminMovementsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-brand-navy tracking-tight">
-            {t('nav_movements')} (Grand Livre de Stock)
+          <h2 className="text-xl font-bold text-brand-navy tracking-tight flex items-center gap-2">
+            <ArrowLeftRight className="w-5 h-5 text-brand-orange" />
+            <span>{t('nav_movements')} (Grand Livre de Stock)</span>
           </h2>
-          <p className="text-xs text-gray-500 font-medium">
-            Registre chronologique et immuable de chaque variation physique de stock
+          <p className="text-xs text-gray-500 font-medium flex items-center gap-2 mt-0.5">
+            <span>Registre chronologique et immuable de chaque variation physique de stock</span>
+            {lastSync && (
+              <span className="text-emerald-600">
+                · Sync {lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            )}
           </p>
         </div>
 
-        <Button
-          onClick={handleExportCSV}
-          variant="outline"
-          size="sm"
-          leftIcon={<FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />}
-        >
-          Export CSV / Excel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={refresh}
+            variant="outline"
+            size="sm"
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />}
+            disabled={syncing}
+          >
+            {syncing ? 'Sync...' : 'Actualiser'}
+          </Button>
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            size="sm"
+            leftIcon={<FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />}
+          >
+            Export CSV / Excel
+          </Button>
+        </div>
       </div>
 
       {/* Filter */}
@@ -175,7 +229,7 @@ export default function AdminMovementsPage() {
                         {m.stock_before} → <span className="font-bold text-brand-navy">{m.stock_after}</span>
                       </td>
                       <td className="py-3 px-4 text-right font-bold text-brand-navy">
-                        {m.total_cost.toFixed(2)} {t('currency')}
+                        {Number(m.total_cost || 0).toFixed(2)} {t('currency')}
                       </td>
                       <td className="py-3 px-4 text-gray-500 text-[11px] max-w-xs truncate">
                         {m.notes || 'Opération système'}
