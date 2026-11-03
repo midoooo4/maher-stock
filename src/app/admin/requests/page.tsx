@@ -57,6 +57,7 @@ export default function AdminRequestsPage() {
 
     const handleUpdate = () => refreshRequests();
     window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('maher_new_request', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
     let bc: BroadcastChannel | null = null;
@@ -76,6 +77,7 @@ export default function AdminRequestsPage() {
 
     return () => {
       window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('maher_new_request', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
       if (bc) bc.close();
       clearInterval(interval);
@@ -145,9 +147,12 @@ export default function AdminRequestsPage() {
   };
 
   const filteredRequests = requests.filter((r) => {
+    const rNumber = r.request_number || '';
+    const rReason = r.reason || '';
     const matchesSearch =
-      r.request_number.toLowerCase().includes(search.toLowerCase()) ||
-      r.reason.toLowerCase().includes(search.toLowerCase());
+      !search ||
+      rNumber.toLowerCase().includes(search.toLowerCase()) ||
+      rReason.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
     const matchesDept = deptFilter === 'all' || r.department === deptFilter;
     return matchesSearch && matchesStatus && matchesDept;

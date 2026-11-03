@@ -392,20 +392,35 @@ class StockDatabaseService {
         // Ensure all initial products exist in state
         if (!this.state.products || this.state.products.length < INITIAL_PRODUCTS.length) {
           const existingCodes = new Set((this.state.products || []).map(p => p.code));
+          let added = false;
           INITIAL_PRODUCTS.forEach(ip => {
             if (!existingCodes.has(ip.code)) {
               this.state.products.push(ip);
+              added = true;
             }
           });
-          this.save();
+          if (added && typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+            } catch (_) {}
+          }
         }
       } else {
-        this.save();
+        this.state = getInitialState();
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+          } catch (_) {}
+        }
       }
     } catch (e) {
       console.warn('Could not parse localStorage database, resetting to initial state', e);
       this.state = getInitialState();
-      this.save();
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        } catch (_) {}
+      }
     }
   }
 
@@ -428,6 +443,7 @@ class StockDatabaseService {
   }
 
   private realtimeInitialized = false;
+  private isSyncing = false;
 
   public initRealtime() {
     if (typeof window === 'undefined' || this.realtimeInitialized) return;
@@ -448,11 +464,13 @@ class StockDatabaseService {
   }
 
   public async syncWithSupabase() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this.isSyncing) return;
+    this.isSyncing = true;
+    this.load();
     try {
       const [prodsRes, reqsRes, supsRes, catsRes, notifsRes] = await Promise.all([
         supabase.from('products').select('*'),
-        supabase.from('stock_requests').select('*, items:stock_request_items(*)'),
+        supabase.from('stock_requests').select('*, items:stock_request_items(*)').order('created_at', { ascending: false }),
         supabase.from('suppliers').select('*'),
         supabase.from('categories').select('*'),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
@@ -496,11 +514,11 @@ class StockDatabaseService {
         });
       }
 
+      let hasNewPending = false;
+      let newestReq: any = null;
+
       if (reqsRes.data && reqsRes.data.length > 0) {
-        // Merge Supabase stock requests
         const reqMap = new Map(this.state.stock_requests.map(r => [r.request_number, r]));
-        let hasNewPending = false;
-        let newestReq: any = null;
 
         reqsRes.data.forEach((sr: any) => {
           const existing = reqMap.get(sr.request_number);
@@ -511,31 +529,33 @@ class StockDatabaseService {
               hasNewPending = true;
               newestReq = sr;
             }
-          } else if (existing.status !== sr.status) {
-            existing.status = sr.status;
-            existing.approved_by = sr.approved_by;
-            existing.approved_at = sr.approved_at;
-            existing.rejected_by = sr.rejected_by;
-            existing.rejected_at = sr.rejected_at;
-            existing.rejection_reason = sr.rejection_reason;
-            existing.delivered_by = sr.delivered_by;
-            existing.delivered_at = sr.delivered_at;
-            changed = true;
+          } else {
+            if (
+              existing.status !== sr.status ||
+              existing.approved_by !== sr.approved_by ||
+              existing.delivered_by !== sr.delivered_by ||
+              (!existing.items && sr.items)
+            ) {
+              Object.assign(existing, sr);
+              changed = true;
+            }
           }
         });
-
-        if (hasNewPending && newestReq && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('maher_new_request', {
-            detail: { request: newestReq }
-          }));
-        }
       }
 
       if (changed) {
         this.save();
       }
+
+      if (hasNewPending && newestReq && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('maher_new_request', {
+          detail: { request: newestReq }
+        }));
+      }
     } catch (err) {
       console.warn('Supabase sync note:', err);
+    } finally {
+      this.isSyncing = false;
     }
   }
 
@@ -1210,22 +1230,23 @@ class StockDatabaseService {
               status: 'PENDING'
             }));
             safeSupabaseSync(supabase.from('stock_request_items').insert(itemsPayload));
+
+            // Sync notification with valid Supabase UUID reference
+            safeSupabaseSync(
+              supabase.from('notifications').insert([{
+                recipient_role: 'ALL',
+                title_fr: notifData.title_fr,
+                title_ar: notifData.title_ar,
+                message_fr: notifData.message_fr,
+                message_ar: notifData.message_ar,
+                type: notifData.type,
+                reference_type: notifData.reference_type,
+                reference_id: reqDbId,
+                is_read: false
+              }])
+            );
           }
         })
-      );
-
-      safeSupabaseSync(
-        supabase.from('notifications').insert([{
-          recipient_role: 'ALL',
-          title_fr: notifData.title_fr,
-          title_ar: notifData.title_ar,
-          message_fr: notifData.message_fr,
-          message_ar: notifData.message_ar,
-          type: notifData.type,
-          reference_type: notifData.reference_type,
-          reference_id: notifData.reference_id,
-          is_read: false
-        }])
       );
     }
 
