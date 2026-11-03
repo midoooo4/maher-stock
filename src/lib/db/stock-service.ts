@@ -414,20 +414,48 @@ class StockDatabaseService {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
         window.dispatchEvent(new CustomEvent('maher_stock_updated'));
+        if (typeof BroadcastChannel !== 'undefined') {
+          try {
+            const bc = new BroadcastChannel('maher_stock_sync_channel');
+            bc.postMessage({ type: 'STOCK_STATE_UPDATED', timestamp: Date.now() });
+            bc.close();
+          } catch (_) {}
+        }
       } catch (e) {
         console.error('Error saving stock state to localStorage', e);
       }
     }
   }
 
+  private realtimeInitialized = false;
+
+  public initRealtime() {
+    if (typeof window === 'undefined' || this.realtimeInitialized) return;
+    this.realtimeInitialized = true;
+    try {
+      supabase
+        .channel('maher_realtime_sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_requests' }, () => {
+          this.syncWithSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+          this.syncWithSupabase();
+        })
+        .subscribe();
+    } catch (err) {
+      console.warn('Realtime subscription note:', err);
+    }
+  }
+
   public async syncWithSupabase() {
     if (typeof window === 'undefined') return;
     try {
-      const [prodsRes, reqsRes, supsRes, catsRes] = await Promise.all([
+      const [prodsRes, reqsRes, supsRes, catsRes, notifsRes] = await Promise.all([
         supabase.from('products').select('*'),
         supabase.from('stock_requests').select('*, items:stock_request_items(*)'),
         supabase.from('suppliers').select('*'),
         supabase.from('categories').select('*'),
+        supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
       ]);
 
       let changed = false;
@@ -458,14 +486,31 @@ class StockDatabaseService {
         changed = true;
       }
 
+      if (notifsRes.data && notifsRes.data.length > 0) {
+        const notifMap = new Map(this.state.notifications.map(n => [n.id, n]));
+        (notifsRes.data as Notification[]).forEach((sn) => {
+          if (!notifMap.has(sn.id)) {
+            this.state.notifications.unshift(sn);
+            changed = true;
+          }
+        });
+      }
+
       if (reqsRes.data && reqsRes.data.length > 0) {
         // Merge Supabase stock requests
         const reqMap = new Map(this.state.stock_requests.map(r => [r.request_number, r]));
+        let hasNewPending = false;
+        let newestReq: any = null;
+
         reqsRes.data.forEach((sr: any) => {
           const existing = reqMap.get(sr.request_number);
           if (!existing) {
             this.state.stock_requests.unshift(sr);
             changed = true;
+            if (sr.status === 'PENDING') {
+              hasNewPending = true;
+              newestReq = sr;
+            }
           } else if (existing.status !== sr.status) {
             existing.status = sr.status;
             existing.approved_by = sr.approved_by;
@@ -478,6 +523,12 @@ class StockDatabaseService {
             changed = true;
           }
         });
+
+        if (hasNewPending && newestReq && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('maher_new_request', {
+            detail: { request: newestReq }
+          }));
+        }
       }
 
       if (changed) {
@@ -743,6 +794,7 @@ class StockDatabaseService {
     return this.state.notifications.filter(n => {
       if (n.recipient_id && userId && n.recipient_id === userId) return true;
       if (n.recipient_role && (n.recipient_role === role || n.recipient_role === 'ALL')) return true;
+      if (role === 'ADMIN' && n.recipient_role === 'RESPONSABLE') return true;
       return !n.recipient_id && !n.recipient_role;
     });
   }
@@ -1094,9 +1146,9 @@ class StockDatabaseService {
       notes: `Nouvelle demande de sortie ${requestNumber} par ${params.employeeName} pour ${department}`,
     });
 
-    // Notify Responsable Économat
-    this.addNotification({
-      recipient_role: 'RESPONSABLE',
+    // Notify Responsable Économat & Admin
+    const notifData = {
+      recipient_role: 'ALL' as const,
       title_fr: `Nouvelle demande de sortie (${requestNumber})`,
       title_ar: `طلب صرف جديد (${requestNumber})`,
       message_fr: `Demande de ${params.employeeName} pour le service ${department} (${items.length} articles)`,
@@ -1104,12 +1156,39 @@ class StockDatabaseService {
       type: 'NEW_REQUEST',
       reference_type: 'stock_requests',
       reference_id: requestId,
-    });
+    };
+    this.addNotification(notifData);
 
     this.save();
 
-    // Sync to Supabase in background
+    // Broadcast & Sync to Supabase in background
     if (typeof window !== 'undefined') {
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('maher_stock_sync_channel');
+          bc.postMessage({
+            type: 'NEW_REQUEST_SUBMITTED',
+            requestNumber,
+            employeeName: params.employeeName,
+            department,
+            itemsCount: items.length,
+            requestId,
+            request: newRequest
+          });
+          bc.close();
+        } catch (_) {}
+      }
+
+      window.dispatchEvent(new CustomEvent('maher_new_request', {
+        detail: {
+          requestNumber,
+          employeeName: params.employeeName,
+          department,
+          requestId,
+          request: newRequest
+        }
+      }));
+
       safeSupabaseSync(
         Promise.resolve(
           supabase.from('stock_requests').insert([{
@@ -1133,6 +1212,20 @@ class StockDatabaseService {
             safeSupabaseSync(supabase.from('stock_request_items').insert(itemsPayload));
           }
         })
+      );
+
+      safeSupabaseSync(
+        supabase.from('notifications').insert([{
+          recipient_role: 'ALL',
+          title_fr: notifData.title_fr,
+          title_ar: notifData.title_ar,
+          message_fr: notifData.message_fr,
+          message_ar: notifData.message_ar,
+          type: notifData.type,
+          reference_type: notifData.reference_type,
+          reference_id: notifData.reference_id,
+          is_read: false
+        }])
       );
     }
 

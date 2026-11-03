@@ -52,13 +52,25 @@ export default function ManagerRequestsPage() {
     window.addEventListener('maher_stock_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
-    const interval = setInterval(() => {
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('maher_stock_sync_channel');
+        bc.onmessage = () => {
+          refreshRequests();
+        };
+      } catch (_) {}
+    }
+
+    const interval = setInterval(async () => {
+      await stockService.syncWithSupabase();
       refreshRequests();
-    }, 3000);
+    }, 2500);
 
     return () => {
       window.removeEventListener('maher_stock_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      if (bc) bc.close();
       clearInterval(interval);
     };
   }, []);

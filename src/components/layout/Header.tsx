@@ -1,20 +1,120 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
-import { Bell, Globe, LogOut, ChevronDown } from 'lucide-react';
+import { Notification } from '@/lib/supabase/types';
+import { playNotificationSound } from '@/lib/utils/sound';
+import { Bell, Globe, LogOut, ChevronDown, CheckCircle2, ArrowRight, X } from 'lucide-react';
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { language, toggleLanguage, t, isRTL } = useTranslation();
   const { user, logout } = useAuth();
+  const router = useRouter();
+
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [toastAlert, setToastAlert] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    url?: string;
+  } | null>(null);
 
-  const notifications = user ? stockService.getNotifications(user.role, user.id) : [];
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  useEffect(() => {
+    stockService.initRealtime();
+
+    const updateNotifs = () => {
+      if (user) {
+        setNotifications(stockService.getNotifications(user.role, user.id));
+      }
+    };
+
+    updateNotifs();
+
+    // Listen to local update events
+    window.addEventListener('maher_stock_updated', updateNotifs);
+    window.addEventListener('storage', updateNotifs);
+
+    // Cross-tab synchronization via BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('maher_stock_sync_channel');
+        bc.onmessage = (event) => {
+          updateNotifs();
+          if (
+            event.data?.type === 'NEW_REQUEST_SUBMITTED' &&
+            (user?.role === 'ADMIN' || user?.role === 'RESPONSABLE')
+          ) {
+            playNotificationSound();
+            const reqNum = event.data.requestNumber || '';
+            const emp = event.data.employeeName || '';
+            const dept = event.data.department || '';
+            setToastAlert({
+              id: String(Date.now()),
+              title: language === 'ar' ? `طلب صرف جديد (${reqNum})` : `Nouvelle demande de sortie (${reqNum})`,
+              message: language === 'ar'
+                ? `طلب من ${emp} - قسم ${dept}`
+                : `Demande de ${emp} pour le service ${dept}`,
+              url: user.role === 'ADMIN' ? '/admin/requests' : '/manager/requests',
+            });
+          }
+        };
+      } catch (_) {}
+    }
+
+    // Custom window event (fired on new request creation or Supabase sync)
+    const handleNewRequest = (e: any) => {
+      updateNotifs();
+      if (user?.role === 'ADMIN' || user?.role === 'RESPONSABLE') {
+        playNotificationSound();
+        const detail = e.detail || {};
+        const req = detail.request || {};
+        const reqNum = detail.requestNumber || req.request_number || '';
+        const emp = detail.employeeName || '';
+        const dept = detail.department || req.department || '';
+        setToastAlert({
+          id: String(Date.now()),
+          title: language === 'ar' ? `طلب صرف جديد (${reqNum})` : `Nouvelle demande de sortie (${reqNum})`,
+          message: language === 'ar'
+            ? `طلب من ${emp || 'موظف'} - قسم ${dept}`
+            : `Demande de ${emp || 'un employé'} pour le service ${dept}`,
+          url: user.role === 'ADMIN' ? '/admin/requests' : '/manager/requests',
+        });
+      }
+    };
+    window.addEventListener('maher_new_request', handleNewRequest);
+
+    // Background Supabase sync every 2.5 seconds
+    const interval = setInterval(async () => {
+      await stockService.syncWithSupabase();
+      updateNotifs();
+    }, 2500);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', updateNotifs);
+      window.removeEventListener('storage', updateNotifs);
+      window.removeEventListener('maher_new_request', handleNewRequest);
+      if (bc) bc.close();
+      clearInterval(interval);
+    };
+  }, [user, language]);
+
+  // Auto-dismiss toast alert after 6 seconds
+  useEffect(() => {
+    if (!toastAlert) return;
+    const timer = setTimeout(() => {
+      setToastAlert(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [toastAlert]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm h-16">
@@ -221,6 +321,50 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
         </div>
       </div>
+
+      {/* Floating Real-Time Toast Alert with Sound & Link */}
+      {toastAlert && (
+        <div
+          className={`fixed top-4 z-50 max-w-sm w-[90%] sm:w-96 shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${
+            isRTL ? 'left-4' : 'right-4'
+          }`}
+        >
+          <div className="bg-brand-navy text-white p-4 rounded-2xl border-2 border-brand-orange shadow-2xl flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-orange text-white flex items-center justify-center flex-shrink-0 animate-pulse shadow-md">
+              <Bell className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1">
+                <h4 className="text-xs font-bold text-amber-300 truncate">
+                  {toastAlert.title}
+                </h4>
+                <button
+                  onClick={() => setToastAlert(null)}
+                  className="text-white/60 hover:text-white text-xs p-1 rounded-md hover:bg-white/10"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="text-xs text-white/90 mt-1 leading-snug">
+                {toastAlert.message}
+              </p>
+              {toastAlert.url && (
+                <button
+                  onClick={() => {
+                    const url = toastAlert.url;
+                    setToastAlert(null);
+                    if (url) router.push(url);
+                  }}
+                  className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-brand-orange hover:text-amber-200 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl transition-colors"
+                >
+                  <span>{language === 'ar' ? 'عرض تفاصيل الطلب' : 'Voir la demande'}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
