@@ -592,6 +592,9 @@ class StockDatabaseService {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, () => {
           this.syncWithSupabase();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => {
+          this.syncWithSupabase();
+        })
         .subscribe();
     } catch (err) {
       console.warn('Realtime subscription note:', err);
@@ -603,12 +606,13 @@ class StockDatabaseService {
     this.isSyncing = true;
     this.load();
     try {
-      const [prodsRes, reqsRes, supsRes, catsRes, notifsRes] = await Promise.all([
+      const [prodsRes, reqsRes, supsRes, catsRes, notifsRes, auditRes] = await Promise.all([
         supabase.from('products').select('*'),
         supabase.from('stock_requests').select('*, items:stock_request_items(*)').order('created_at', { ascending: false }),
         supabase.from('suppliers').select('*'),
         supabase.from('categories').select('*'),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200),
       ]);
 
       let changed = false;
@@ -688,6 +692,22 @@ class StockDatabaseService {
         });
       }
 
+      // Merge audit logs from Supabase
+      if (auditRes.data && auditRes.data.length > 0) {
+        const supLogs = auditRes.data as AuditLog[];
+        const supLogKeys = new Set(supLogs.map(l => `${l.action}_${l.entity_id || ''}_${l.user_name || ''}`));
+        // Retain only pending local logs created in the last 15s that are not yet returned by Supabase
+        const inflight = this.state.audit_logs.filter(l =>
+          l.id.startsWith('audit-') &&
+          (Date.now() - new Date(l.created_at).getTime() < 15000) &&
+          !supLogKeys.has(`${l.action}_${l.entity_id || ''}_${l.user_name || ''}`)
+        );
+        this.state.audit_logs = [...inflight, ...supLogs].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        changed = true;
+      }
+
       let hasNewPending = false;
       let newestReq: any = null;
 
@@ -719,6 +739,9 @@ class StockDatabaseService {
 
       if (changed) {
         this.save();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('maher_stock_updated'));
+        }
       }
 
       if (hasNewPending && newestReq && typeof window !== 'undefined') {
@@ -884,11 +907,25 @@ class StockDatabaseService {
     if (supplierData.id) {
       const idx = this.state.suppliers.findIndex(s => s.id === supplierData.id);
       if (idx !== -1) {
+        const old = this.state.suppliers[idx];
         this.state.suppliers[idx] = {
           ...this.state.suppliers[idx],
           ...supplierData,
         };
         this.save();
+        if (userId && userName && userRole) {
+          this.addAuditLog({
+            user_id: userId,
+            user_name: userName,
+            user_role: userRole,
+            action: 'SUPPLIER_UPDATE',
+            entity_type: 'suppliers',
+            entity_id: supplierData.id,
+            old_values: old as unknown as Record<string, unknown>,
+            new_values: this.state.suppliers[idx] as unknown as Record<string, unknown>,
+            notes: `Modification du fournisseur ${supplierData.name || old.name}`,
+          });
+        }
         safeSupabaseSync(
           supabase.from('suppliers').update({
             name: supplierData.name,
@@ -918,6 +955,19 @@ class StockDatabaseService {
     this.state.suppliers.push(newSup);
     this.save();
 
+    if (userId && userName && userRole) {
+      this.addAuditLog({
+        user_id: userId,
+        user_name: userName,
+        user_role: userRole,
+        action: 'SUPPLIER_CREATE',
+        entity_type: 'suppliers',
+        entity_id: newSup.id,
+        new_values: newSup as unknown as Record<string, unknown>,
+        notes: `Création du fournisseur ${newSup.name} (${newSup.city})`,
+      });
+    }
+
     safeSupabaseSync(
       supabase.from('suppliers').insert([{
         name: newSup.name,
@@ -933,10 +983,22 @@ class StockDatabaseService {
     return newSup;
   }
 
-  public deleteSupplier(id: string): void {
+  public deleteSupplier(id: string, userId?: string, userName?: string, userRole?: RoleType): void {
     this.load();
+    const sup = this.state.suppliers.find(s => s.id === id);
     this.state.suppliers = this.state.suppliers.filter(s => s.id !== id);
     this.save();
+    if (sup && userId && userName && userRole) {
+      this.addAuditLog({
+        user_id: userId,
+        user_name: userName,
+        user_role: userRole,
+        action: 'SUPPLIER_DELETE',
+        entity_type: 'suppliers',
+        entity_id: id,
+        notes: `Suppression du fournisseur ${sup.name}`,
+      });
+    }
     safeSupabaseSync(
       supabase.from('suppliers').delete().eq('id', id)
     );
@@ -2214,6 +2276,34 @@ class StockDatabaseService {
     return adjustment;
   }
 
+  private async pushAuditLogToSupabase(log: Omit<AuditLog, 'id' | 'created_at'>) {
+    if (typeof window === 'undefined') return;
+    try {
+      const isUUID = typeof log.user_id === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(log.user_id);
+
+      const payload: any = {
+        user_id: isUUID ? log.user_id : null,
+        user_name: log.user_name || 'Utilisateur',
+        user_role: log.user_role || 'EMPLOYEE',
+        action: log.action,
+        entity_type: log.entity_type || 'SYSTEM',
+        entity_id: log.entity_id ? String(log.entity_id) : null,
+        old_values: log.old_values || null,
+        new_values: log.new_values || null,
+        notes: log.notes || null,
+      };
+
+      const { error } = await supabase.from('audit_logs').insert([payload]);
+      if (error && (error.code === '23503' || error.code === '22P02')) {
+        payload.user_id = null;
+        await supabase.from('audit_logs').insert([payload]);
+      }
+    } catch (err) {
+      console.warn('Audit log push note:', err);
+    }
+  }
+
   // Helper Audit & Notification
   private addAuditLog(log: Omit<AuditLog, 'id' | 'created_at'>) {
     const newLog: AuditLog = {
@@ -2222,6 +2312,22 @@ class StockDatabaseService {
       created_at: new Date().toISOString(),
     };
     this.state.audit_logs.unshift(newLog);
+    this.save();
+
+    // Broadcast immediately so all local tabs see it in real-time
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('maher_stock_updated'));
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('maher_stock_sync_channel');
+          bc.postMessage({ type: 'STOCK_STATE_UPDATED', timestamp: Date.now() });
+          bc.close();
+        } catch (_) {}
+      }
+    }
+
+    // Push to Supabase so ALL users & devices receive it via Realtime
+    safeSupabaseSync(this.pushAuditLogToSupabase(log));
   }
 
   private addNotification(notif: Omit<Notification, 'id' | 'created_at' | 'is_read'>) {

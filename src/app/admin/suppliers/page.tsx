@@ -87,7 +87,7 @@ export default function AdminSuppliersPage() {
       address: formData.address.trim() || undefined,
       city: formData.city.trim() || 'Casablanca',
       notes: formData.notes.trim() || undefined,
-    });
+    }, user?.id, user?.full_name, 'ADMIN');
 
     setIsOpenModal(false);
     loadSuppliers();
@@ -95,7 +95,7 @@ export default function AdminSuppliersPage() {
 
   const handleDelete = () => {
     if (!deletingSup) return;
-    stockService.deleteSupplier(deletingSup.id);
+    stockService.deleteSupplier(deletingSup.id, user?.id, user?.full_name, 'ADMIN');
     setDeletingSup(null);
     loadSuppliers();
   };
