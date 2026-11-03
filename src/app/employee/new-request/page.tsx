@@ -407,7 +407,7 @@ function NewRequestForm() {
                         <input
                           type="number"
                           step={item.product.unit === 'kg' || item.product.unit === 'l' ? '0.5' : '1'}
-                          min="0.1"
+                          min="0"
                           value={item.quantity}
                           onChange={(e) => handleUpdateQty(item.id, parseFloat(e.target.value) || 0)}
                           className="w-28 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-sm font-bold text-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-orange text-center"
