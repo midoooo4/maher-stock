@@ -11,10 +11,11 @@ export default function LoginPage() {
   const { t, language, toggleLanguage } = useTranslation();
   const { login, allUsers } = useAuth();
 
-  // Selected employee (default to first active user or admin)
-  const activeUsers = allUsers.filter((u) => u.is_active);
+  // Selected employee — exclude ADMIN accounts from login screen
+  const loginUsers = allUsers.filter((u) => u.role !== 'ADMIN');
+  const activeLoginUsers = loginUsers.filter((u) => u.is_active);
   const [selectedUserId, setSelectedUserId] = useState<string>(
-    activeUsers[0]?.id || allUsers[0]?.id || ''
+    activeLoginUsers[0]?.id || loginUsers[0]?.id || ''
   );
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +137,7 @@ export default function LoginPage() {
                   }}
                   className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-orange cursor-pointer"
                 >
-                  {allUsers.map((u) => (
+                  {loginUsers.map((u) => (
                     <option key={u.id} value={u.id} disabled={!u.is_active}>
                       {u.role === 'ADMIN' ? '👑 ' : u.role === 'RESPONSABLE' ? '🔑 ' : '👤 '}
                       {u.full_name} {u.department ? `(${u.department})` : ''} {!u.is_active ? (language === 'ar' ? ' - [معطل]' : ' - [Désactivé]') : ''}
@@ -213,7 +214,7 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              {/* Hidden text input for physical keyboard entry */}
+              {/* Hidden input for physical keyboard — invisible but functional */}
               <input
                 type="password"
                 inputMode="numeric"
@@ -225,8 +226,9 @@ export default function LoginPage() {
                   setPin(val);
                   setError(null);
                 }}
-                placeholder={language === 'ar' ? 'أدخل الرمز PIN' : 'Ou tapez votre code PIN'}
-                className="w-full text-center text-sm tracking-widest bg-white border border-gray-200 rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-orange text-gray-800"
+                className="sr-only"
+                aria-hidden="true"
+                tabIndex={-1}
               />
             </div>
 
