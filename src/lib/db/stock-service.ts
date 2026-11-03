@@ -21,7 +21,7 @@ function safeSupabaseSync(task: PromiseLike<any> | Promise<any>) {
   });
 }
 
-const STORAGE_KEY = 'maher_stock_database_v1';
+const STORAGE_KEY = 'maher_stock_database_v2'; // bumped from v1 to force UUID re-sync
 
 // Initial realistic categories (Synchronized with Supabase UUIDs)
 export const INITIAL_CATEGORIES: Category[] = [
