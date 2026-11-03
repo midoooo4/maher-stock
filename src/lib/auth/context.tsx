@@ -9,12 +9,14 @@ interface AuthContextType {
   user: Profile | null;
   role: RoleType | null;
   isLoading: boolean;
-  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, pin?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   switchUser: (profile: Profile) => void;
   allUsers: Profile[];
   addUser: (profile: Omit<Profile, 'id' | 'created_at' | 'updated_at'>) => Promise<Profile>;
   updateUser: (id: string, updates: Partial<Profile>) => Promise<Profile>;
+  toggleUserActive: (id: string) => Promise<Profile>;
+  updateUserPin: (id: string, newPin: string) => Promise<Profile>;
   deleteUser: (id: string) => Promise<void>;
 }
 
@@ -29,6 +31,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: undefined,
     phone: '+212 6 61 00 00 01',
     is_active: true,
+    pin_hash: '0000',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -52,6 +55,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: 'Cuisine',
     phone: '+212 6 63 00 00 03',
     is_active: true,
+    pin_hash: '1111',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -63,6 +67,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: 'Cafe',
     phone: '+212 6 64 00 00 04',
     is_active: true,
+    pin_hash: '2222',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -74,6 +79,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: 'Piscine',
     phone: '+212 6 65 00 00 05',
     is_active: true,
+    pin_hash: '3333',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -85,6 +91,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: 'Restaurant',
     phone: '+212 6 66 00 00 06',
     is_active: true,
+    pin_hash: '4444',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -96,6 +103,7 @@ export const DEMO_PROFILES: Profile[] = [
     department: 'Entretien',
     phone: '+212 6 67 00 00 07',
     is_active: true,
+    pin_hash: '5555',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -117,8 +125,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUsers) {
           const parsed = JSON.parse(storedUsers);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setAllUsers(parsed);
+            // Garantir que chaque profil a un pin_hash
+            const withPins = parsed.map((p: Profile) => {
+              const demoMatch = DEMO_PROFILES.find((dp) => dp.id === p.id || dp.full_name === p.full_name);
+              return {
+                ...p,
+                pin_hash: p.pin_hash || demoMatch?.pin_hash || '1234',
+                is_active: p.is_active !== undefined ? p.is_active : true,
+              };
+            });
+            setAllUsers(withPins);
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(withPins));
           }
+        } else {
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEMO_PROFILES));
         }
       } catch (e) {
         console.warn('Error reading stored users', e);
@@ -128,7 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
-          setUser(parsed);
+          if (parsed && parsed.is_active === false) {
+            // Utilisateur désactivé -> déconnecter
+            localStorage.removeItem('maher_active_user');
+            setUser(null);
+          } else {
+            setUser(parsed);
+          }
         } catch (e) {
           console.error('Error loading saved session', e);
         }
@@ -146,9 +172,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data.forEach((p: Profile) => {
             const idx = merged.findIndex((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase());
             if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...p };
+              merged[idx] = { 
+                ...merged[idx], 
+                ...p,
+                pin_hash: p.pin_hash || merged[idx].pin_hash || '1234',
+              };
             } else {
-              merged.push(p);
+              merged.push({
+                ...p,
+                pin_hash: p.pin_hash || '1234',
+              });
             }
           });
           setAllUsers(merged);
@@ -158,19 +191,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => console.warn('Supabase profiles fetch note:', err));
   }, []);
 
-  const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (identifier: string, pin?: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
-    const normalizedEmail = email.trim().toLowerCase();
+    const cleanId = (identifier || '').trim().toLowerCase();
 
-    const found = allUsers.find((p) => p.email.toLowerCase() === normalizedEmail);
-    if (!found) {
-      setIsLoading(false);
-      return { success: false, error: 'Identifiant ou email non reconnu pour Complexe Maher.' };
+    // Trouver l'utilisateur par ID, nom complet, ou email
+    let found = allUsers.find(
+      (p) =>
+        p.id === identifier ||
+        p.email?.toLowerCase() === cleanId ||
+        p.full_name.toLowerCase() === cleanId
+    );
+
+    // Si on a fourni directement le PIN comme identifiant (cas où l'employé tape directement son PIN)
+    if (!found && (!pin || pin.trim() === '')) {
+      const matchByPin = allUsers.filter((p) => p.pin_hash === identifier.trim());
+      if (matchByPin.length === 1) {
+        found = matchByPin[0];
+        pin = identifier.trim();
+      }
     }
 
+    if (!found) {
+      setIsLoading(false);
+      return { success: false, error: 'Employé introuvable. Veuillez sélectionner votre profil.' };
+    }
+
+    // Blocage si le compte est désactivé
     if (!found.is_active) {
       setIsLoading(false);
-      return { success: false, error: 'Ce compte utilisateur a été désactivé par l\'administrateur.' };
+      return { 
+        success: false, 
+        error: 'Ce compte utilisateur a été désactivé par l\'administrateur. Veuillez contacter la direction.' 
+      };
+    }
+
+    // Vérification du code PIN
+    const expectedPin = found.pin_hash || '1234';
+    const enteredPin = (pin || '').trim();
+    if (!enteredPin) {
+      setIsLoading(false);
+      return { success: false, error: 'Veuillez saisir votre code PIN.' };
+    }
+
+    if (enteredPin !== expectedPin) {
+      setIsLoading(false);
+      return { success: false, error: 'Code PIN incorrect. Veuillez réessayer.' };
     }
 
     setUser(found);
@@ -195,6 +261,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const switchUser = (profile: Profile) => {
+    if (!profile.is_active) {
+      alert('Impossible de basculer : ce compte a été désactivé.');
+      return;
+    }
     setUser(profile);
     localStorage.setItem('maher_active_user', JSON.stringify(profile));
     if (profile.role === 'ADMIN') {
@@ -207,9 +277,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addUser = async (profileData: Omit<Profile, 'id' | 'created_at' | 'updated_at'>): Promise<Profile> => {
+    const fallbackEmail = profileData.email && profileData.email.trim() !== ''
+      ? profileData.email.trim()
+      : `emp_${Date.now().toString().slice(-6)}@complexe-maher.ma`;
+
     const newProfile: Profile = {
       ...profileData,
       id: crypto.randomUUID(),
+      email: fallbackEmail,
+      pin_hash: profileData.pin_hash?.trim() || '1234',
+      is_active: profileData.is_active ?? true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -227,6 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: newProfile.role,
         department: newProfile.department || null,
         phone: newProfile.phone || null,
+        pin_hash: newProfile.pin_hash,
         is_active: newProfile.is_active ?? true,
       }]);
     } catch (e) {
@@ -255,10 +333,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAllUsers(updated);
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updated));
 
-    // If active user was updated, refresh active user session
+    // Si le compte actuellement connecté a été désactivé, déconnexion immédiate !
     if (user && user.id === id) {
-      setUser(updatedProfile);
-      localStorage.setItem('maher_active_user', JSON.stringify(updatedProfile));
+      if (updates.is_active === false) {
+        logout();
+        return updatedProfile;
+      } else {
+        setUser(updatedProfile);
+        localStorage.setItem('maher_active_user', JSON.stringify(updatedProfile));
+      }
     }
 
     // Try sync with Supabase
@@ -270,6 +353,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         department: updates.department,
         phone: updates.phone,
         is_active: updates.is_active,
+        pin_hash: updates.pin_hash,
         updated_at: new Date().toISOString(),
       }).eq('id', id);
     } catch (e) {
@@ -277,6 +361,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return updatedProfile;
+  };
+
+  const toggleUserActive = async (id: string): Promise<Profile> => {
+    const target = allUsers.find(u => u.id === id);
+    if (!target) throw new Error('Utilisateur non trouvé');
+    return updateUser(id, { is_active: !target.is_active });
+  };
+
+  const updateUserPin = async (id: string, newPin: string): Promise<Profile> => {
+    const cleanPin = newPin.trim();
+    if (!cleanPin) throw new Error('Le code PIN ne peut pas être vide');
+    return updateUser(id, { pin_hash: cleanPin });
   };
 
   const deleteUser = async (id: string): Promise<void> => {
@@ -303,6 +399,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         allUsers,
         addUser,
         updateUser,
+        toggleUserActive,
+        updateUserPin,
         deleteUser,
       }}
     >

@@ -88,14 +88,20 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               value={user?.id || ''}
               onChange={(e) => {
                 const target = allUsers.find(u => u.id === e.target.value);
-                if (target) switchUser(target);
+                if (target) {
+                  if (!target.is_active) {
+                    alert('Ce compte utilisateur a été désactivé par l\'administrateur.');
+                    return;
+                  }
+                  switchUser(target);
+                }
               }}
               className="text-xs bg-slate-50 border border-slate-200 text-slate-700 font-medium rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-orange cursor-pointer"
             >
               {allUsers.map((u) => (
-                <option key={u.id} value={u.id}>
+                <option key={u.id} value={u.id} disabled={!u.is_active}>
                   {u.role === 'ADMIN' ? '👑 ' : u.role === 'RESPONSABLE' ? '🔑 ' : '👤 '}
-                  {u.full_name} ({u.role})
+                  {u.full_name} ({u.role}) {!u.is_active ? '• [Désactivé]' : ''}
                 </option>
               ))}
             </select>
