@@ -132,11 +132,11 @@ export default function AdminProductsPage() {
     setIsAddEditOpen(true);
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    stockService.saveProduct(
+    await stockService.saveProduct(
       {
         id: editingProduct?.id,
         ...formData,

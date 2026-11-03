@@ -168,16 +168,30 @@ function NewRequestForm() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const activeProducts = stockService.getProducts().filter((p) => p.is_active);
-    setProducts(activeProducts);
+    const refresh = () => {
+      const activeProducts = stockService.getProducts().filter((p) => p.is_active);
+      setProducts(activeProducts);
 
-    const queryProductId = searchParams.get('product');
-    if (queryProductId) {
-      const match = activeProducts.find((p) => p.id === queryProductId);
-      if (match) {
-        setItems([{ id: 'item-prefill-1', product: match, quantity: 1 }]);
+      const queryProductId = searchParams.get('product');
+      if (queryProductId) {
+        const match = activeProducts.find((p) => p.id === queryProductId);
+        if (match) {
+          setItems([{ id: 'item-prefill-1', product: match, quantity: 1 }]);
+        }
       }
-    }
+    };
+
+    refresh();
+    stockService.syncWithSupabase().then(() => refresh());
+
+    const handleUpdate = () => refresh();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, [searchParams]);
 
   const handleAddItem = () => {

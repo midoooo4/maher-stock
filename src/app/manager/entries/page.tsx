@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
@@ -16,8 +16,8 @@ export default function ManagerEntriesPage() {
   const { user, role } = useAuth();
 
   const [entries, setEntries] = useState<StockEntry[]>(stockService.getStockEntries());
-  const products = stockService.getProducts();
-  const suppliers = stockService.getSuppliers();
+  const [products, setProducts] = useState<Product[]>(stockService.getProducts());
+  const [suppliers, setSuppliers] = useState<Supplier[]>(stockService.getSuppliers());
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -33,9 +33,25 @@ export default function ManagerEntriesPage() {
     notes: '',
   });
 
-  const refreshEntries = () => {
+  const refreshAll = () => {
     setEntries(stockService.getStockEntries());
+    setProducts(stockService.getProducts());
+    setSuppliers(stockService.getSuppliers());
   };
+
+  useEffect(() => {
+    refreshAll();
+    stockService.syncWithSupabase().then(() => refreshAll());
+
+    const handleUpdate = () => refreshAll();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const selectedProduct = products.find((p) => p.id === formData.product_id);
 
@@ -60,7 +76,7 @@ export default function ManagerEntriesPage() {
 
       setIsAddOpen(false);
       setSuccessMsg(t('entry_success'));
-      refreshEntries();
+      refreshAll();
       setTimeout(() => setSuccessMsg(null), 5000);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : t('error'));

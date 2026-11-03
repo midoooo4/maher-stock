@@ -41,9 +41,23 @@ function EmployeeProductsContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-  useEffect(() => {
+  const refresh = () => {
     setProducts(stockService.getProducts().filter((p) => p.is_active));
     setCategories(stockService.getCategories().filter((c) => c.is_active));
+  };
+
+  useEffect(() => {
+    refresh();
+    stockService.syncWithSupabase().then(() => refresh());
+
+    const handleUpdate = () => refresh();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, []);
 
   const filtered = products.filter((p) => {

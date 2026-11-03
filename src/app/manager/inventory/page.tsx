@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
@@ -24,7 +24,7 @@ export default function ManagerInventoryPage() {
   const { user, role } = useAuth();
 
   const [sessions, setSessions] = useState<InventorySession[]>(stockService.getInventorySessions());
-  const [products] = useState<Product[]>(stockService.getProducts());
+  const [products, setProducts] = useState<Product[]>(stockService.getProducts());
 
   // Active in-progress session
   const activeSession = sessions.find((s) => s.status === 'IN_PROGRESS');
@@ -40,9 +40,24 @@ export default function ManagerInventoryPage() {
   const [justifications, setJustifications] = useState<Record<string, string>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const refreshSessions = () => {
+  const refreshData = () => {
     setSessions(stockService.getInventorySessions());
+    setProducts(stockService.getProducts());
   };
+
+  useEffect(() => {
+    refreshData();
+    stockService.syncWithSupabase().then(() => refreshData());
+
+    const handleUpdate = () => refreshData();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const handleStartSession = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +80,7 @@ export default function ManagerInventoryPage() {
     setJustifications({});
 
     setIsNewSessionOpen(false);
-    refreshSessions();
+    refreshData();
   };
 
   const handleCompleteSession = () => {
@@ -100,7 +115,7 @@ export default function ManagerInventoryPage() {
         userRole: role || 'RESPONSABLE',
       });
 
-      refreshSessions();
+      refreshData();
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : t('error'));
     }

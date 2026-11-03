@@ -1,18 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n/context';
 import { stockService } from '@/lib/db/stock-service';
+import { Product } from '@/lib/supabase/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AlertOctagon, AlertTriangle, ArrowDownToLine, Package } from 'lucide-react';
 
 export default function ManagerAlertsPage() {
   const { t } = useTranslation();
-  const products = stockService.getProducts();
-
+  const [products, setProducts] = useState<Product[]>(stockService.getProducts());
   const [filter, setFilter] = useState<'low' | 'out' | 'all'>('low');
+
+  const refreshProducts = () => {
+    setProducts(stockService.getProducts());
+  };
+
+  React.useEffect(() => {
+    refreshProducts();
+    stockService.syncWithSupabase().then(() => refreshProducts());
+
+    const handleUpdate = () => refreshProducts();
+    window.addEventListener('maher_stock_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('maher_stock_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const lowStockProducts = products.filter(
     (p) => (p.physical_stock - p.reserved_stock) <= p.min_stock && (p.physical_stock - p.reserved_stock) > 0

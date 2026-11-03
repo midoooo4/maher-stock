@@ -23,39 +23,39 @@ function safeSupabaseSync(task: PromiseLike<any> | Promise<any>) {
 
 const STORAGE_KEY = 'maher_stock_database_v1';
 
-// Initial realistic categories
+// Initial realistic categories (Synchronized with Supabase UUIDs)
 export const INITIAL_CATEGORIES: Category[] = [
-  { id: 'cat-alim', code: 'ALIM', name_fr: 'Produits alimentaires', name_ar: 'المواد الغذائية', color: '#E99B39', icon: 'Wheat', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-cafe', code: 'CAFE_BOISSON', name_fr: 'Café et boissons', name_ar: 'القهوة والمشروبات', color: '#78350F', icon: 'Coffee', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-cuisine', code: 'CUISINE', name_fr: 'Produits de cuisine', name_ar: 'مستلزمات المطبخ', color: '#DC2626', icon: 'ChefHat', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-papier', code: 'PAPIER_CONS', name_fr: 'Papier et consommables', name_ar: 'الورقيات والمستهلكات', color: '#43A9B7', icon: 'FileText', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-entretien', code: 'ENTRETIEN', name_fr: 'Produits d\'entretien', name_ar: 'مواد التنظيف', color: '#0284C7', icon: 'Sparkles', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-emballage', code: 'EMBALLAGE', name_fr: 'Emballages', name_ar: 'مواد التغليف', color: '#854D0E', icon: 'Package', is_active: true, created_at: new Date().toISOString() },
-  { id: 'cat-autres', code: 'AUTRES', name_fr: 'Autres & Divers', name_ar: 'أخرى ومتنوعة', color: '#6B7280', icon: 'MoreHorizontal', is_active: true, created_at: new Date().toISOString() },
+  { id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae', code: 'ALIM', name_fr: 'Produits alimentaires', name_ar: 'المواد الغذائية', color: '#E99B39', icon: 'Wheat', is_active: true, created_at: new Date().toISOString() },
+  { id: 'dfb08602-431b-4194-98c0-0aa62f4c3eeb', code: 'CAFE_BOISSON', name_fr: 'Café et boissons', name_ar: 'القهوة والمشروبات', color: '#78350F', icon: 'Coffee', is_active: true, created_at: new Date().toISOString() },
+  { id: '743c4c71-6a4f-4010-a5e1-02e0d6aca458', code: 'CUISINE', name_fr: 'Produits de cuisine', name_ar: 'مستلزمات المطبخ', color: '#DC2626', icon: 'ChefHat', is_active: true, created_at: new Date().toISOString() },
+  { id: 'b5de093f-9a33-4c13-b364-737c944e753e', code: 'PAPIER_CONS', name_fr: 'Papier et consommables', name_ar: 'الورقيات والمستهلكات', color: '#43A9B7', icon: 'FileText', is_active: true, created_at: new Date().toISOString() },
+  { id: '45a3aecb-c3a8-40d1-b259-33db747a3a1a', code: 'ENTRETIEN', name_fr: "Produits d'entretien", name_ar: 'مواد التنظيف', color: '#0284C7', icon: 'Sparkles', is_active: true, created_at: new Date().toISOString() },
+  { id: 'c0696c1d-ed02-4887-aa55-d1d4df783806', code: 'EMBALLAGE', name_fr: 'Emballages', name_ar: 'مواد التغليف', color: '#854D0E', icon: 'Package', is_active: true, created_at: new Date().toISOString() },
+  { id: 'bdbf853d-f28b-40e6-b9f9-196b5c4cda1f', code: 'AUTRES', name_fr: 'Autres & Divers', name_ar: 'أخرى ومتنوعة', color: '#6B7280', icon: 'MoreHorizontal', is_active: true, created_at: new Date().toISOString() },
 ];
 
-// Initial realistic suppliers
+// Initial realistic suppliers (Synchronized with Supabase UUIDs)
 export const INITIAL_SUPPLIERS: Supplier[] = [
-  { id: 'sup-1', name: 'Maroc Distribution Alimentaire', phone: '+212 5 22 12 34 56', email: 'contact@marocdistribution.ma', address: 'Zone Industrielle Sidi Bernoussi', city: 'Casablanca', notes: 'Fournisseur principal épicerie et huiles', is_active: true, created_at: new Date().toISOString() },
-  { id: 'sup-2', name: 'Cafés Torréfaction Atlas', phone: '+212 5 35 65 43 21', email: 'commandes@atlascafe.ma', address: 'Quartier Industriel Ain Sebaa', city: 'Casablanca', notes: 'Fournisseur grains de café arabica/robusta', is_active: true, created_at: new Date().toISOString() },
-  { id: 'sup-3', name: 'Hygiène & Piscine Pro Maroc', phone: '+212 5 22 98 76 54', email: 'info@hygiene-piscine.ma', address: 'Bd Mohammed VI', city: 'Casablanca', notes: 'Détergents, traitement eau piscine, chlore', is_active: true, created_at: new Date().toISOString() },
+  { id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe', name: 'Maroc Distribution Alimentaire', phone: '+212 5 22 12 34 56', email: 'contact@marocdistribution.ma', address: 'Zone Industrielle Sidi Bernoussi', city: 'Casablanca', notes: 'Fournisseur principal épicerie et huiles', is_active: true, created_at: new Date().toISOString() },
+  { id: '82f5ffb8-e6fe-4217-a18b-63183c6c6415', name: 'Cafés de Fès Torréfaction', phone: '+212 5 35 65 43 21', email: 'commandes@cafesfes.ma', address: 'Quartier Industriel', city: 'Fès', notes: 'Fournisseur grains de café arabica/robusta', is_active: true, created_at: new Date().toISOString() },
+  { id: '158a076e-7065-43b8-afd4-48419dd4f513', name: 'Hygiène & Propreté SARL', phone: '+212 5 22 98 76 54', email: 'info@hygiene-pro.ma', address: 'Bd Mohammed VI', city: 'Casablanca', notes: 'Détergents, traitement eau piscine, chlore', is_active: true, created_at: new Date().toISOString() },
 ];
 
-// Initial realistic restaurant & pool stock items
+// Initial realistic restaurant & pool stock items (Synchronized with Supabase UUIDs)
 export const INITIAL_PRODUCTS: Product[] = [
   {
-    id: 'prod-cafe',
+    id: 'dfb309c9-453f-4f54-9fc2-21b0aa9a6fef',
     code: 'PRD-CAF-001',
     name_fr: 'Café Grains Torréfié Premium',
     name_ar: 'حبوب قهوة محمصة ممتازة',
     description: 'Mélange 80% Arabica 20% Robusta pour machines espresso professionnelles',
-    category_id: 'cat-cafe',
+    category_id: 'dfb08602-431b-4194-98c0-0aa62f4c3eeb',
     unit: 'kg',
     physical_stock: 25.0,
     reserved_stock: 0.0,
     min_stock: 10.0,
     purchase_price: 140.0,
-    supplier_id: 'sup-2',
+    supplier_id: '82f5ffb8-e6fe-4217-a18b-63183c6c6415',
     location: 'Chambre Économat - Rayon C-1',
     image_url: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&q=80',
     qr_code_data: 'MAHER-PRD-CAF-001',
@@ -64,18 +64,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-sucre',
+    id: '1849fccf-ca65-4a92-8c96-80310ed82d08',
     code: 'PRD-SUC-002',
     name_fr: 'Sucre Semoule Sac 5kg',
     name_ar: 'سكر سنيدة كيس 5 كغ',
     description: 'Sucre blanc fin pour cuisine, pâtisserie et café',
-    category_id: 'cat-alim',
+    category_id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
     unit: 'kg',
     physical_stock: 45.0,
     reserved_stock: 0.0,
     min_stock: 20.0,
     purchase_price: 7.5,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon A-2',
     image_url: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=600&q=80',
     qr_code_data: 'MAHER-PRD-SUC-002',
@@ -84,18 +84,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-huile',
+    id: 'f74da0f5-2e36-4b4b-b11a-3589f1704e04',
     code: 'PRD-HUI-003',
     name_fr: 'Huile de Tournesol Bidon 5L',
     name_ar: 'زيت دوار الشمس سعة 5 لتر',
     description: 'Huile de friture et de cuisson haute température',
-    category_id: 'cat-alim',
+    category_id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
     unit: 'l',
     physical_stock: 30.0,
     reserved_stock: 0.0,
     min_stock: 15.0,
     purchase_price: 18.0,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon A-1 (Sol)',
     image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&q=80',
     qr_code_data: 'MAHER-PRD-HUI-003',
@@ -104,18 +104,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-farine',
+    id: '335cdce4-34a0-4855-8c77-b549c0cacac6',
     code: 'PRD-FAR-004',
     name_fr: 'Farine Pâtissière Sac 10kg',
     name_ar: 'دقيق ممتاز كيس 10 كغ',
     description: 'Farine de blé tendre extra raffinée pour pâtes fraîches et pâtisserie',
-    category_id: 'cat-alim',
+    category_id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
     unit: 'kg',
     physical_stock: 50.0,
     reserved_stock: 0.0,
     min_stock: 20.0,
     purchase_price: 6.0,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon A-3',
     image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80',
     qr_code_data: 'MAHER-PRD-FAR-004',
@@ -124,18 +124,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-chlore',
+    id: '29c0e383-470a-4e49-ad53-e2700c5c32d5',
     code: 'PRD-CHL-005',
     name_fr: 'Chlore Choc Galets Piscine 5kg',
     name_ar: 'أقراص كلور صدمة للمسبح 5 كغ',
     description: 'Désinfectant et assainissant eau de piscine complexe',
-    category_id: 'cat-entretien',
+    category_id: '45a3aecb-c3a8-40d1-b259-33db747a3a1a',
     unit: 'kg',
     physical_stock: 15.0,
     reserved_stock: 0.0,
     min_stock: 8.0,
     purchase_price: 65.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Local Technique Piscine / Entretien',
     image_url: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=600&q=80',
     qr_code_data: 'MAHER-PRD-CHL-005',
@@ -144,18 +144,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-serviette',
+    id: '4741ecc6-02e2-4e63-9d78-2a37ada876c2',
     code: 'PRD-SER-006',
     name_fr: 'Serviettes Papier Cocktail (Carton 2000)',
     name_ar: 'مناديل ورقية كوكتيل كرتونة 2000',
     description: 'Serviettes blanches gaufrées pour bar de la piscine et restaurant',
-    category_id: 'cat-papier',
+    category_id: 'b5de093f-9a33-4c13-b364-737c944e753e',
     unit: 'carton',
     physical_stock: 8.0,
     reserved_stock: 0.0,
     min_stock: 4.0,
     purchase_price: 95.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Chambre Économat - Rayon D-2',
     image_url: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=600&q=80',
     qr_code_data: 'MAHER-PRD-SER-006',
@@ -164,18 +164,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-detergent',
+    id: '5080bc92-3127-4479-8f6b-eb9a32aa2cf5',
     code: 'PRD-DET-007',
     name_fr: 'Détergent Sols & Surfaces 5L',
     name_ar: 'منظف ومطهر الأرضيات والأسطح 5 لتر',
     description: 'Produit désinfectant normes HACCP pour sols salle et cuisine',
-    category_id: 'cat-entretien',
+    category_id: '45a3aecb-c3a8-40d1-b259-33db747a3a1a',
     unit: 'l',
     physical_stock: 12.0,
     reserved_stock: 0.0,
     min_stock: 5.0,
     purchase_price: 42.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Chambre Économat - Rayon E-1',
     image_url: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&q=80',
     qr_code_data: 'MAHER-PRD-DET-007',
@@ -184,18 +184,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-eau',
+    id: '297e9376-a09d-4819-b545-6c0011f0f282',
     code: 'PRD-EAU-008',
     name_fr: 'Eau Minérale Naturelle 1.5L (Pack 6)',
     name_ar: 'ماء معدني طبيعي 1.5 لتر حزمة 6',
     description: 'Packs eau minérale pour service table et bar piscine',
-    category_id: 'cat-cafe',
+    category_id: 'dfb08602-431b-4194-98c0-0aa62f4c3eeb',
     unit: 'paquet',
     physical_stock: 35.0,
     reserved_stock: 0.0,
     min_stock: 15.0,
     purchase_price: 24.0,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon B-1',
     image_url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600&q=80',
     qr_code_data: 'MAHER-PRD-EAU-008',
@@ -204,18 +204,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-lait',
+    id: '2e4758c8-ba1f-4fa2-ab9b-4ae611affe19',
     code: 'PRD-LAI-009',
     name_fr: 'Lait Entier UHT Brique 1L Pack 12',
     name_ar: 'حليب كامل الدسم 1 لتر حزمة 12',
     description: 'Lait entier pasteurisé pour préparations café, cappuccino et cuisine',
-    category_id: 'cat-alim',
+    category_id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
     unit: 'paquet',
     physical_stock: 20.0,
     reserved_stock: 0.0,
     min_stock: 8.0,
     purchase_price: 110.0,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Froide Positive',
     image_url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&q=80',
     qr_code_data: 'MAHER-PRD-LAI-009',
@@ -224,18 +224,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-the',
+    id: '87d37546-9a31-460c-8c50-b5c6dc01167a',
     code: 'PRD-THE-010',
     name_fr: 'Thé Vert Gunpowder Traditionnel 1kg',
     name_ar: 'شاي أخضر صيني بارود ممتاز 1 كغ',
     description: 'Grains de thé vert de premier choix pour thé à la menthe marocain',
-    category_id: 'cat-cafe',
+    category_id: 'dfb08602-431b-4194-98c0-0aa62f4c3eeb',
     unit: 'kg',
     physical_stock: 16.0,
     reserved_stock: 0.0,
     min_stock: 6.0,
     purchase_price: 75.0,
-    supplier_id: 'sup-2',
+    supplier_id: '82f5ffb8-e6fe-4217-a18b-63183c6c6415',
     location: 'Chambre Économat - Rayon C-2',
     image_url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=600&q=80',
     qr_code_data: 'MAHER-PRD-THE-010',
@@ -244,18 +244,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-riz',
+    id: '4df1baca-e2e0-4018-a096-8df7855301d4',
     code: 'PRD-RIZ-011',
     name_fr: 'Riz Basmati Extra Long Grain Sac 5kg',
     name_ar: 'أرز بسمتي حبة طويلة كيس 5 كغ',
     description: 'Riz supérieur pour garnitures plats chauds restaurant et banquet',
-    category_id: 'cat-alim',
+    category_id: '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
     unit: 'kg',
     physical_stock: 25.0,
     reserved_stock: 0.0,
     min_stock: 10.0,
     purchase_price: 18.5,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon A-4',
     image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&q=80',
     qr_code_data: 'MAHER-PRD-RIZ-011',
@@ -264,18 +264,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-tomate',
+    id: '47dba92a-cb28-4420-854c-2f82fe2f8236',
     code: 'PRD-TOM-012',
     name_fr: 'Double Concentré de Tomates Boîte 800g',
     name_ar: 'معجون طماطم مركز علبة 800 غ',
     description: 'Sauces de base, tajines, pizzas et plats méditerranéens',
-    category_id: 'cat-cuisine',
+    category_id: '743c4c71-6a4f-4010-a5e1-02e0d6aca458',
     unit: 'piece',
     physical_stock: 40.0,
     reserved_stock: 0.0,
     min_stock: 15.0,
     purchase_price: 14.0,
-    supplier_id: 'sup-1',
+    supplier_id: 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
     location: 'Chambre Économat - Rayon B-3',
     image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&q=80',
     qr_code_data: 'MAHER-PRD-TOM-012',
@@ -284,18 +284,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-savon',
+    id: '35c7a181-3dad-480d-a032-f01cd23b912c',
     code: 'PRD-SAV-013',
     name_fr: 'Savon Liquide Mains Antibactérien Bidon 5L',
     name_ar: 'صابون سائل للأيدي مضاد للبكتيريا 5 لتر',
     description: 'Recharge distributeurs sanitaires restaurant, vestiaires et piscine',
-    category_id: 'cat-entretien',
+    category_id: '45a3aecb-c3a8-40d1-b259-33db747a3a1a',
     unit: 'l',
     physical_stock: 10.0,
     reserved_stock: 0.0,
     min_stock: 4.0,
     purchase_price: 38.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Chambre Économat - Rayon E-2',
     image_url: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=600&q=80',
     qr_code_data: 'MAHER-PRD-SAV-013',
@@ -304,18 +304,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-barquette',
+    id: '4910c73c-be39-4c84-a1a6-1390aca0c11c',
     code: 'PRD-BAR-014',
     name_fr: 'Barquettes Alimentaires Kraft Emporter x100',
     name_ar: 'علب طعام كرافت للوجبات السريعة 100 حبة',
     description: 'Emballages recyclables pour snacks piscine et plats à emporter',
-    category_id: 'cat-emballage',
+    category_id: 'c0696c1d-ed02-4887-aa55-d1d4df783806',
     unit: 'paquet',
     physical_stock: 12.0,
     reserved_stock: 0.0,
     min_stock: 5.0,
     purchase_price: 85.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Chambre Économat - Rayon F-1',
     image_url: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&q=80',
     qr_code_data: 'MAHER-PRD-BAR-014',
@@ -324,18 +324,18 @@ export const INITIAL_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'prod-film',
+    id: '697a3bc5-16c2-4998-93fd-c0a0e44963fa',
     code: 'PRD-FIL-015',
     name_fr: 'Film Étirable Alimentaire Pro Rouleau 300m',
     name_ar: 'غشاء بلاستيكي غذائي احترافي رول 300 متر',
     description: 'Film de conservation étanche pour chambre froide cuisine',
-    category_id: 'cat-emballage',
+    category_id: 'c0696c1d-ed02-4887-aa55-d1d4df783806',
     unit: 'piece',
     physical_stock: 15.0,
     reserved_stock: 0.0,
     min_stock: 6.0,
     purchase_price: 45.0,
-    supplier_id: 'sup-3',
+    supplier_id: '158a076e-7065-43b8-afd4-48419dd4f513',
     location: 'Chambre Économat - Rayon F-2',
     image_url: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?w=600&q=80',
     qr_code_data: 'MAHER-PRD-FIL-015',
@@ -380,8 +380,112 @@ class StockDatabaseService {
     this.state = getInitialState();
     if (typeof window !== 'undefined') {
       this.load();
+      this.initRealtime();
       Promise.resolve(this.syncWithSupabase()).catch(() => {});
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('maher_stock_sync_channel');
+          bc.onmessage = (event) => {
+            if (event.data?.type === 'STOCK_STATE_UPDATED') {
+              this.load();
+              window.dispatchEvent(new CustomEvent('maher_stock_updated'));
+            }
+          };
+        } catch (_) {}
+      }
     }
+  }
+
+  public resolveCategoryId(catIdOrCode?: string): string {
+    if (!catIdOrCode) return '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae';
+    const byId = this.state.categories.find(c => c.id === catIdOrCode);
+    if (byId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(byId.id)) {
+      return byId.id;
+    }
+    const byCode = this.state.categories.find(c => c.code === catIdOrCode || catIdOrCode.toUpperCase().includes(c.code));
+    if (byCode && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(byCode.id)) {
+      return byCode.id;
+    }
+    const mockMap: Record<string, string> = {
+      'cat-alim': '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae',
+      'cat-cafe': 'dfb08602-431b-4194-98c0-0aa62f4c3eeb',
+      'cat-cuisine': '743c4c71-6a4f-4010-a5e1-02e0d6aca458',
+      'cat-papier': 'b5de093f-9a33-4c13-b364-737c944e753e',
+      'cat-entretien': '45a3aecb-c3a8-40d1-b259-33db747a3a1a',
+      'cat-emballage': 'c0696c1d-ed02-4887-aa55-d1d4df783806',
+      'cat-autres': 'bdbf853d-f28b-40e6-b9f9-196b5c4cda1f',
+    };
+    if (mockMap[catIdOrCode]) {
+      return mockMap[catIdOrCode];
+    }
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catIdOrCode)) {
+      return catIdOrCode;
+    }
+    const firstValid = this.state.categories.find(c => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.id));
+    return firstValid ? firstValid.id : '29fbd5dd-7e49-4db5-8c96-038ec5e7a0ae';
+  }
+
+  public resolveSupplierId(supId?: string): string | null {
+    if (!supId || supId === '' || supId === 'none') return null;
+    const byId = this.state.suppliers.find(s => s.id === supId);
+    if (byId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(byId.id)) {
+      return byId.id;
+    }
+    const mockMap: Record<string, string> = {
+      'sup-1': 'fac3314f-6e08-42f7-bc5b-31f72b6b58fe',
+      'sup-2': '82f5ffb8-e6fe-4217-a18b-63183c6c6415',
+      'sup-3': '158a076e-7065-43b8-afd4-48419dd4f513',
+    };
+    if (mockMap[supId]) {
+      return mockMap[supId];
+    }
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supId)) {
+      return supId;
+    }
+    return null;
+  }
+
+  public resolveProductId(prodIdOrCode?: string): string {
+    if (!prodIdOrCode) return '';
+    const prod = this.state.products.find(p => p.id === prodIdOrCode || p.code === prodIdOrCode);
+    if (prod && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(prod.id)) {
+      return prod.id;
+    }
+    const mockMap: Record<string, string> = {
+      'prod-cafe': 'dfb309c9-453f-4f54-9fc2-21b0aa9a6fef',
+      'prod-sucre': '1849fccf-ca65-4a92-8c96-80310ed82d08',
+      'prod-huile': 'f74da0f5-2e36-4b4b-b11a-3589f1704e04',
+      'prod-farine': '335cdce4-34a0-4855-8c77-b549c0cacac6',
+      'prod-chlore': '29c0e383-470a-4e49-ad53-e2700c5c32d5',
+      'prod-serviette': '4741ecc6-02e2-4e63-9d78-2a37ada876c2',
+      'prod-detergent': '5080bc92-3127-4479-8f6b-eb9a32aa2cf5',
+      'prod-eau': '297e9376-a09d-4819-b545-6c0011f0f282',
+      'prod-lait': '2e4758c8-ba1f-4fa2-ab9b-4ae611affe19',
+      'prod-the': '87d37546-9a31-460c-8c50-b5c6dc01167a',
+      'prod-riz': '4df1baca-e2e0-4018-a096-8df7855301d4',
+      'prod-tomate': '47dba92a-cb28-4420-854c-2f82fe2f8236',
+      'prod-savon': '35c7a181-3dad-480d-a032-f01cd23b912c',
+      'prod-barquette': '4910c73c-be39-4c84-a1a6-1390aca0c11c',
+      'prod-film': '697a3bc5-16c2-4998-93fd-c0a0e44963fa',
+      'PRD-CAF-001': 'dfb309c9-453f-4f54-9fc2-21b0aa9a6fef',
+      'PRD-SUC-002': '1849fccf-ca65-4a92-8c96-80310ed82d08',
+      'PRD-HUI-003': 'f74da0f5-2e36-4b4b-b11a-3589f1704e04',
+      'PRD-FAR-004': '335cdce4-34a0-4855-8c77-b549c0cacac6',
+      'PRD-CHL-005': '29c0e383-470a-4e49-ad53-e2700c5c32d5',
+      'PRD-SER-006': '4741ecc6-02e2-4e63-9d78-2a37ada876c2',
+      'PRD-DET-007': '5080bc92-3127-4479-8f6b-eb9a32aa2cf5',
+      'PRD-EAU-008': '297e9376-a09d-4819-b545-6c0011f0f282',
+      'PRD-LAI-009': '2e4758c8-ba1f-4fa2-ab9b-4ae611affe19',
+      'PRD-THE-010': '87d37546-9a31-460c-8c50-b5c6dc01167a',
+      'PRD-RIZ-011': '4df1baca-e2e0-4018-a096-8df7855301d4',
+      'PRD-TOM-012': '47dba92a-cb28-4420-854c-2f82fe2f8236',
+      'PRD-SAV-013': '35c7a181-3dad-480d-a032-f01cd23b912c',
+      'PRD-BAR-014': '4910c73c-be39-4c84-a1a6-1390aca0c11c',
+      'PRD-FIL-015': '697a3bc5-16c2-4998-93fd-c0a0e44963fa',
+    };
+    if (mockMap[prodIdOrCode]) return mockMap[prodIdOrCode];
+    if (prod && mockMap[prod.code]) return mockMap[prod.code];
+    return prod ? prod.id : prodIdOrCode;
   }
 
   private load() {
@@ -404,6 +508,25 @@ class StockDatabaseService {
               localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
             } catch (_) {}
           }
+        }
+        // Sanitize categories and products to always use valid Supabase UUIDs
+        if (this.state.categories) {
+          INITIAL_CATEGORIES.forEach(initCat => {
+            const found = this.state.categories.find(c => c.code === initCat.code);
+            if (found && (!found.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(found.id))) {
+              found.id = initCat.id;
+            }
+          });
+        }
+        if (this.state.products) {
+          this.state.products.forEach(p => {
+            p.category_id = this.resolveCategoryId(p.category_id);
+            const supId = this.resolveSupplierId(p.supplier_id);
+            if (supId) p.supplier_id = supId;
+            else if (p.supplier_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.supplier_id)) {
+              delete (p as any).supplier_id;
+            }
+          });
         }
       } else {
         this.state = getInitialState();
@@ -457,6 +580,18 @@ class StockDatabaseService {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
           this.syncWithSupabase();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          this.syncWithSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+          this.syncWithSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'suppliers' }, () => {
+          this.syncWithSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, () => {
+          this.syncWithSupabase();
+        })
         .subscribe();
     } catch (err) {
       console.warn('Realtime subscription note:', err);
@@ -497,6 +632,45 @@ class StockDatabaseService {
         });
         this.state.products = Array.from(prodMap.values());
         changed = true;
+
+        // Auto-push any local products that are not yet in Supabase
+        const supCodes = new Set(supProds.map(sp => sp.code));
+        const missingFromSupabase = this.state.products.filter(p => !supCodes.has(p.code));
+        if (missingFromSupabase.length > 0) {
+          const toUpload = missingFromSupabase.map(p => ({
+            code: p.code,
+            name_fr: p.name_fr,
+            name_ar: p.name_ar,
+            description: p.description || '',
+            category_id: this.resolveCategoryId(p.category_id),
+            supplier_id: this.resolveSupplierId(p.supplier_id),
+            unit: p.unit || 'kg',
+            physical_stock: p.physical_stock || 0,
+            reserved_stock: p.reserved_stock || 0,
+            purchase_price: p.purchase_price || 0,
+            min_stock: p.min_stock || 5,
+            location: p.location || '',
+            image_url: p.image_url || '',
+            qr_code_data: p.qr_code_data || `MAHER-${p.code}`,
+            is_active: p.is_active ?? true,
+          }));
+          safeSupabaseSync(
+            supabase.from('products').upsert(toUpload, { onConflict: 'code' }).select().then(({ data }) => {
+              if (data && data.length > 0) {
+                const byCode = new Map(data.map((d: any) => [d.code, d]));
+                this.state.products.forEach(p => {
+                  const dbProd = byCode.get(p.code);
+                  if (dbProd) {
+                    p.id = dbProd.id;
+                    p.category_id = dbProd.category_id;
+                    p.supplier_id = dbProd.supplier_id;
+                  }
+                });
+                this.save();
+              }
+            })
+          );
+        }
       }
 
       if (supsRes.data && supsRes.data.length > 0) {
@@ -827,17 +1001,24 @@ class StockDatabaseService {
   // --- MUTATION METHODS (STRICT BUSINESS LOGIC) ---
 
   // 1. ADD / EDIT PRODUCT
-  public saveProduct(productData: Partial<Product>, userId: string, userName: string, userRole: RoleType): Product {
+  public async saveProduct(productData: Partial<Product>, userId: string, userName: string, userRole: RoleType): Promise<Product> {
     this.load();
     if (userRole === 'EMPLOYEE') {
       throw new Error('Accès refusé: Un employé ne peut pas créer ou modifier de produit.');
     }
 
-    if (productData.id) {
+    const resolvedCategoryId = this.resolveCategoryId(productData.category_id);
+    const resolvedSupplierId = this.resolveSupplierId(productData.supplier_id);
+
+    const existingIndex = productData.id
+      ? this.state.products.findIndex(p => p.id === productData.id)
+      : productData.code
+        ? this.state.products.findIndex(p => p.code === productData.code)
+        : -1;
+
+    if (existingIndex >= 0) {
       // Edit
-      const index = this.state.products.findIndex(p => p.id === productData.id);
-      if (index === -1) throw new Error('Produit introuvable.');
-      const old = this.state.products[index];
+      const old = this.state.products[existingIndex];
 
       const newPhysicalStock = productData.physical_stock !== undefined
         ? Math.max(0, Number(productData.physical_stock) || 0)
@@ -846,11 +1027,13 @@ class StockDatabaseService {
       const updated: Product = {
         ...old,
         ...productData,
+        category_id: resolvedCategoryId,
+        supplier_id: resolvedSupplierId || undefined,
         physical_stock: newPhysicalStock,
         reserved_stock: old.reserved_stock,
         updated_at: new Date().toISOString(),
       };
-      this.state.products[index] = updated;
+      this.state.products[existingIndex] = updated;
 
       // Si le stock physique a été ajusté manuellement
       const stockDiff = newPhysicalStock - old.physical_stock;
@@ -890,22 +1073,35 @@ class StockDatabaseService {
 
       this.save();
       if (typeof window !== 'undefined') {
-        safeSupabaseSync(
-          supabase.from('products').upsert([{
-            code: updated.code,
-            name_fr: updated.name_fr,
-            name_ar: updated.name_ar,
-            description: updated.description,
-            unit: updated.unit,
-            physical_stock: updated.physical_stock,
-            reserved_stock: updated.reserved_stock,
-            purchase_price: updated.purchase_price,
-            min_stock: updated.min_stock,
-            location: updated.location,
-            image_url: updated.image_url,
-            is_active: updated.is_active,
-          }], { onConflict: 'code' })
-        );
+        const updatePayload = {
+          code: updated.code,
+          name_fr: updated.name_fr,
+          name_ar: updated.name_ar,
+          description: updated.description || '',
+          unit: updated.unit,
+          physical_stock: updated.physical_stock,
+          reserved_stock: updated.reserved_stock,
+          purchase_price: updated.purchase_price,
+          min_stock: updated.min_stock,
+          location: updated.location || '',
+          image_url: updated.image_url || '',
+          qr_code_data: updated.qr_code_data || `MAHER-${updated.code}`,
+          is_active: updated.is_active ?? true,
+          category_id: resolvedCategoryId,
+          supplier_id: resolvedSupplierId,
+        };
+
+        try {
+          const { data, error } = await supabase.from('products').upsert([updatePayload], { onConflict: 'code' }).select();
+          if (error) {
+            console.error('Supabase product update error:', error);
+          } else if (data && data[0]) {
+            updated.id = data[0].id;
+            this.save();
+          }
+        } catch (err) {
+          console.error('Supabase product update exception:', err);
+        }
       }
       return updated;
     } else {
@@ -919,15 +1115,15 @@ class StockDatabaseService {
         name_fr: productData.name_fr || 'Nouveau Produit',
         name_ar: productData.name_ar || 'منتج جديد',
         description: productData.description || '',
-        category_id: productData.category_id || this.state.categories[0].id,
+        category_id: resolvedCategoryId,
         unit: productData.unit || 'kg',
         physical_stock: initialStock,
         reserved_stock: 0,
         min_stock: productData.min_stock || 5,
         purchase_price: productData.purchase_price || 0,
-        supplier_id: productData.supplier_id,
+        supplier_id: resolvedSupplierId || undefined,
         location: productData.location || '',
-        image_url: productData.image_url,
+        image_url: productData.image_url || '',
         qr_code_data: `MAHER-${code}`,
         is_active: true,
         created_at: new Date().toISOString(),
@@ -970,22 +1166,35 @@ class StockDatabaseService {
 
       this.save();
       if (typeof window !== 'undefined') {
-        safeSupabaseSync(
-          supabase.from('products').upsert([{
-            code: newProduct.code,
-            name_fr: newProduct.name_fr,
-            name_ar: newProduct.name_ar,
-            description: newProduct.description,
-            unit: newProduct.unit,
-            physical_stock: newProduct.physical_stock,
-            reserved_stock: newProduct.reserved_stock,
-            purchase_price: newProduct.purchase_price,
-            min_stock: newProduct.min_stock,
-            location: newProduct.location,
-            image_url: newProduct.image_url,
-            is_active: newProduct.is_active,
-          }], { onConflict: 'code' })
-        );
+        const createPayload = {
+          code: newProduct.code,
+          name_fr: newProduct.name_fr,
+          name_ar: newProduct.name_ar,
+          description: newProduct.description || '',
+          unit: newProduct.unit,
+          physical_stock: newProduct.physical_stock,
+          reserved_stock: newProduct.reserved_stock,
+          purchase_price: newProduct.purchase_price,
+          min_stock: newProduct.min_stock,
+          location: newProduct.location || '',
+          image_url: newProduct.image_url || '',
+          qr_code_data: newProduct.qr_code_data,
+          is_active: newProduct.is_active,
+          category_id: resolvedCategoryId,
+          supplier_id: resolvedSupplierId,
+        };
+
+        try {
+          const { data, error } = await supabase.from('products').upsert([createPayload], { onConflict: 'code' }).select();
+          if (error) {
+            console.error('Supabase product insert error:', error);
+          } else if (data && data[0]) {
+            newProduct.id = data[0].id;
+            this.save();
+          }
+        } catch (err) {
+          console.error('Supabase product insert exception:', err);
+        }
       }
       return newProduct;
     }
@@ -1094,6 +1303,15 @@ class StockDatabaseService {
     });
 
     this.save();
+    if (typeof window !== 'undefined') {
+      safeSupabaseSync(
+        supabase.from('products').update({
+          physical_stock: product.physical_stock,
+          purchase_price: product.purchase_price,
+          updated_at: new Date().toISOString(),
+        }).eq('code', product.code)
+      );
+    }
     return newEntry;
   }
 
@@ -1224,7 +1442,7 @@ class StockDatabaseService {
             const reqDbId = (data[0] as any).id;
             const itemsPayload = requestItems.map(it => ({
               request_id: reqDbId,
-              product_id: it.product_id,
+              product_id: this.resolveProductId(it.product_id),
               requested_quantity: it.requested_quantity,
               unit: it.unit,
               status: 'PENDING'
