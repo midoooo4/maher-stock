@@ -182,8 +182,8 @@ export default function ManagerRequestsPage() {
       <div className="flex flex-wrap items-center gap-2">
         {[
           { id: 'PENDING', label: 'En attente de décision' },
-          { id: 'APPROVED', label: 'Approuvées (À préparer)' },
-          { id: 'READY', label: 'Préparées (Prêt pour remise)' },
+          { id: 'DELIVERED', label: 'Sorties validées' },
+          { id: 'APPROVED', label: 'Approuvées' },
           { id: 'all', label: 'Toutes les demandes' },
         ].map((tab) => (
           <button

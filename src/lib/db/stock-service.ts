@@ -1287,24 +1287,89 @@ class StockDatabaseService {
       const product = this.state.products.find(p => p.id === item.product_id);
       if (!product) throw new Error('Produit introuvable.');
 
-      const availableStock = product.physical_stock - product.reserved_stock;
-      if (appItem.approvedQuantity > availableStock) {
+      if (appItem.approvedQuantity > product.physical_stock) {
         throw new Error(
-          `Stock disponible insuffisant pour "${product.name_fr}". Demandé/Approuvé: ${appItem.approvedQuantity} ${product.unit}, Disponible: ${availableStock} ${product.unit}.`
+          `Stock disponible insuffisant pour "${product.name_fr}". Accordé: ${appItem.approvedQuantity} ${product.unit}, En stock physique: ${product.physical_stock} ${product.unit}.`
         );
       }
 
       item.approved_quantity = appItem.approvedQuantity;
-      item.status = appItem.approvedQuantity > 0 ? 'APPROVED' : 'REJECTED';
+      item.delivered_quantity = appItem.approvedQuantity;
+      item.status = appItem.approvedQuantity > 0 ? 'DELIVERED' : 'REJECTED';
 
-      // Reserve stock in product (RÈGLE MÉTIER: Le stock n'est pas diminué, il est réservé!)
-      product.reserved_stock += appItem.approvedQuantity;
-      product.updated_at = new Date().toISOString();
+      // Décrémentation directe du stock physique
+      if (appItem.approvedQuantity > 0) {
+        const stockBefore = product.physical_stock;
+        product.physical_stock = Number(Math.max(0, product.physical_stock - appItem.approvedQuantity).toFixed(3));
+        product.updated_at = new Date().toISOString();
+
+        // Enregistrer le mouvement de sortie de stock (Exit)
+        const movementNumber = `MOUV-${new Date().getFullYear()}-${String(this.state.stock_movements.length + 1).padStart(4, '0')}`;
+        const movement: StockMovement = {
+          id: `mouv-${Date.now()}-${item.id}`,
+          movement_number: movementNumber,
+          product_id: product.id,
+          movement_type: 'EXIT',
+          quantity: appItem.approvedQuantity,
+          stock_before: stockBefore,
+          stock_after: product.physical_stock,
+          unit_cost: product.purchase_price,
+          total_cost: Number((appItem.approvedQuantity * product.purchase_price).toFixed(2)),
+          reference_type: 'REQUEST',
+          reference_id: requestId,
+          performed_by: userId,
+          notes: `Sortie de stock validée - Demande ${request.request_number} (${request.department})`,
+          created_at: new Date().toISOString(),
+        };
+        this.state.stock_movements.unshift(movement);
+
+        // Synchroniser la diminution de stock avec Supabase
+        if (typeof window !== 'undefined') {
+          safeSupabaseSync(
+            supabase.from('products').update({
+              physical_stock: product.physical_stock,
+              updated_at: new Date().toISOString(),
+            }).eq('code', product.code)
+          );
+
+          safeSupabaseSync(
+            supabase.from('stock_movements').insert([{
+              movement_number: movement.movement_number,
+              product_id: product.id,
+              movement_type: 'EXIT',
+              quantity: appItem.approvedQuantity,
+              stock_before: stockBefore,
+              stock_after: product.physical_stock,
+              unit_cost: product.purchase_price,
+              total_cost: movement.total_cost,
+              reference_type: 'REQUEST',
+              performed_by: userId,
+              notes: movement.notes,
+            }])
+          );
+        }
+
+        // Vérifier l'alerte de stock bas
+        if (product.physical_stock <= product.min_stock) {
+          this.addNotification({
+            recipient_role: 'ALL',
+            title_fr: `Alerte: Stock faible pour ${product.name_fr}`,
+            title_ar: `تنبيه: مخزون منخفض لـ ${product.name_ar}`,
+            message_fr: `Le stock (${product.physical_stock} ${product.unit}) est sous le seuil d'alerte (${product.min_stock} ${product.unit}).`,
+            message_ar: `المخزون (${product.physical_stock} ${product.unit}) أقل من الحد الأدنى (${product.min_stock} ${product.unit}).`,
+            type: 'LOW_STOCK',
+            reference_type: 'products',
+            reference_id: product.id,
+          });
+        }
+      }
     }
 
-    request.status = 'APPROVED';
+    request.status = 'DELIVERED';
     request.approved_by = userId;
     request.approved_at = new Date().toISOString();
+    request.delivered_by = userId;
+    request.delivered_at = new Date().toISOString();
     request.updated_at = new Date().toISOString();
 
     // Audit Log
@@ -1316,18 +1381,18 @@ class StockDatabaseService {
       entity_type: 'stock_requests',
       entity_id: requestId,
       old_values: { status: 'PENDING' },
-      new_values: { status: 'APPROVED', itemsApproved },
-      notes: `Demande ${request.request_number} validée par ${userName}. Stock réservé.`,
+      new_values: { status: 'DELIVERED', itemsApproved },
+      notes: `Demande ${request.request_number} validée par ${userName}. Stock physique décrémenté directement.`,
     });
 
     // Notify requesting Employee
     this.addNotification({
       recipient_id: request.employee_id,
-      title_fr: `Demande approuvée (${request.request_number})`,
-      title_ar: `تمت الموافقة على طلبك (${request.request_number})`,
-      message_fr: `Votre demande a été approuvée par le responsable. Préparation en cours.`,
-      message_ar: `تمت الموافقة على طلبك بنجاح من طرف المسؤول. جاري التحضير.`,
-      type: 'REQUEST_APPROVED',
+      title_fr: `Demande validée (${request.request_number})`,
+      title_ar: `تمت الموافقة وصرف الطلب (${request.request_number})`,
+      message_fr: `Votre demande a été validée par le responsable et sortie du stock.`,
+      message_ar: `تمت الموافقة على طلبك بنجاح من طرف المسؤول وخصم الكميات من المخزون.`,
+      type: 'REQUEST_DELIVERED',
       reference_type: 'stock_requests',
       reference_id: requestId,
     });
@@ -1336,11 +1401,21 @@ class StockDatabaseService {
     if (typeof window !== 'undefined') {
       safeSupabaseSync(
         supabase.from('stock_requests').update({
-          status: 'APPROVED',
+          status: 'DELIVERED',
           approved_by: userId,
           approved_at: new Date().toISOString(),
+          delivered_by: userId,
+          delivered_at: new Date().toISOString(),
         }).eq('request_number', request.request_number)
       );
+
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('maher_stock_sync_channel');
+          bc.postMessage({ type: 'STOCK_STATE_UPDATED', timestamp: Date.now() });
+          bc.close();
+        } catch (_) {}
+      }
     }
     return request;
   }
