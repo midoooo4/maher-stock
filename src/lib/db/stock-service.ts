@@ -766,14 +766,43 @@ class StockDatabaseService {
       const index = this.state.products.findIndex(p => p.id === productData.id);
       if (index === -1) throw new Error('Produit introuvable.');
       const old = this.state.products[index];
+
+      const newPhysicalStock = productData.physical_stock !== undefined
+        ? Math.max(0, Number(productData.physical_stock) || 0)
+        : old.physical_stock;
+
       const updated: Product = {
         ...old,
         ...productData,
-        physical_stock: old.physical_stock, // Physical stock cannot be edited directly via product form!
+        physical_stock: newPhysicalStock,
         reserved_stock: old.reserved_stock,
         updated_at: new Date().toISOString(),
       };
       this.state.products[index] = updated;
+
+      // Si le stock physique a été ajusté manuellement
+      const stockDiff = newPhysicalStock - old.physical_stock;
+      if (stockDiff !== 0) {
+        const movementNumber = `MOUV-${new Date().getFullYear()}-${String(this.state.stock_movements.length + 1).padStart(4, '0')}`;
+        const isAdd = stockDiff > 0;
+        const movement: StockMovement = {
+          id: `mouv-${Date.now()}`,
+          movement_number: movementNumber,
+          product_id: updated.id,
+          movement_type: isAdd ? 'ADJUSTMENT_ADD' : 'ADJUSTMENT_SUB',
+          quantity: Math.abs(stockDiff),
+          stock_before: old.physical_stock,
+          stock_after: newPhysicalStock,
+          unit_cost: updated.purchase_price,
+          total_cost: Number((Math.abs(stockDiff) * updated.purchase_price).toFixed(2)),
+          reference_type: 'INVENTORY_ADJUSTMENT',
+          reference_id: updated.id,
+          performed_by: userId,
+          notes: `Ajustement manuel du stock depuis la fiche produit (${isAdd ? '+' : '-'}${Math.abs(stockDiff)} ${updated.unit})`,
+          created_at: new Date().toISOString(),
+        };
+        this.state.stock_movements.unshift(movement);
+      }
 
       this.addAuditLog({
         user_id: userId,
@@ -784,7 +813,7 @@ class StockDatabaseService {
         entity_id: updated.id,
         old_values: old as unknown as Record<string, unknown>,
         new_values: updated as unknown as Record<string, unknown>,
-        notes: `Modification du produit ${updated.name_fr} (${updated.code})`,
+        notes: `Modification du produit ${updated.name_fr} (${updated.code})${stockDiff !== 0 ? ` - Stock ajusté: ${old.physical_stock} -> ${newPhysicalStock}` : ''}`,
       });
 
       this.save();
@@ -796,6 +825,8 @@ class StockDatabaseService {
             name_ar: updated.name_ar,
             description: updated.description,
             unit: updated.unit,
+            physical_stock: updated.physical_stock,
+            reserved_stock: updated.reserved_stock,
             purchase_price: updated.purchase_price,
             min_stock: updated.min_stock,
             location: updated.location,
@@ -808,6 +839,8 @@ class StockDatabaseService {
     } else {
       // Create new
       const code = productData.code || `PRD-${Date.now().toString().slice(-4)}`;
+      const initialStock = Math.max(0, Number(productData.physical_stock) || 0);
+
       const newProduct: Product = {
         id: `prod-${Date.now()}`,
         code,
@@ -816,7 +849,7 @@ class StockDatabaseService {
         description: productData.description || '',
         category_id: productData.category_id || this.state.categories[0].id,
         unit: productData.unit || 'kg',
-        physical_stock: 0,
+        physical_stock: initialStock,
         reserved_stock: 0,
         min_stock: productData.min_stock || 5,
         purchase_price: productData.purchase_price || 0,
@@ -830,6 +863,28 @@ class StockDatabaseService {
       };
       this.state.products.push(newProduct);
 
+      // Si quantité initiale émise / en stock > 0, enregistrer un mouvement initial
+      if (initialStock > 0) {
+        const movementNumber = `MOUV-${new Date().getFullYear()}-${String(this.state.stock_movements.length + 1).padStart(4, '0')}`;
+        const initialMovement: StockMovement = {
+          id: `mouv-${Date.now()}`,
+          movement_number: movementNumber,
+          product_id: newProduct.id,
+          movement_type: 'ENTRY',
+          quantity: initialStock,
+          stock_before: 0,
+          stock_after: initialStock,
+          unit_cost: newProduct.purchase_price,
+          total_cost: Number((initialStock * newProduct.purchase_price).toFixed(2)),
+          reference_type: 'ENTRY',
+          reference_id: newProduct.id,
+          performed_by: userId,
+          notes: `Stock initial lors de la création du produit (+${initialStock} ${newProduct.unit})`,
+          created_at: new Date().toISOString(),
+        };
+        this.state.stock_movements.unshift(initialMovement);
+      }
+
       this.addAuditLog({
         user_id: userId,
         user_name: userName,
@@ -838,7 +893,7 @@ class StockDatabaseService {
         entity_type: 'products',
         entity_id: newProduct.id,
         new_values: newProduct as unknown as Record<string, unknown>,
-        notes: `Création du produit ${newProduct.name_fr} (${newProduct.code})`,
+        notes: `Création du produit ${newProduct.name_fr} (${newProduct.code}) avec stock initial: ${initialStock} ${newProduct.unit}`,
       });
 
       this.save();
@@ -850,6 +905,8 @@ class StockDatabaseService {
             name_ar: newProduct.name_ar,
             description: newProduct.description,
             unit: newProduct.unit,
+            physical_stock: newProduct.physical_stock,
+            reserved_stock: newProduct.reserved_stock,
             purchase_price: newProduct.purchase_price,
             min_stock: newProduct.min_stock,
             location: newProduct.location,

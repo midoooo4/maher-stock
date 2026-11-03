@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { language, toggleLanguage, t } = useTranslation();
+  const { language, toggleLanguage, t, isRTL } = useTranslation();
   const { user, role, logout, switchUser, allUsers } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -104,13 +104,18 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           {/* Notifications Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                setShowUserMenu(false);
+              }}
               className="relative p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none"
               title={t('nav_notifications')}
             >
               <Bell className="w-5 h-5 text-brand-navy" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-brand-orange text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className={`absolute top-1.5 w-4 h-4 bg-brand-orange text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse ${
+                  isRTL ? 'left-1.5' : 'right-1.5'
+                }`}>
                   {unreadCount}
                 </span>
               )}
@@ -118,63 +123,76 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
             {/* Notification popover */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-dropdown border border-gray-100 z-50 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-brand-navy uppercase tracking-wider">
-                    {t('nav_notifications')} ({unreadCount} non lues)
-                  </h4>
-                  <button
-                    onClick={() => {
-                      notifications.forEach(n => stockService.markNotificationAsRead(n.id));
-                      setShowNotifications(false);
-                    }}
-                    className="text-[11px] text-brand-orange hover:underline font-medium"
-                  >
-                    Tout marquer comme lu
-                  </button>
-                </div>
-                <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-gray-400">
-                      Aucune notification
-                    </div>
-                  ) : (
-                    notifications.slice(0, 6).map((n) => (
-                      <div
-                        key={n.id}
-                        className={`p-3.5 text-xs transition-colors hover:bg-gray-50 ${
-                          !n.is_read ? 'bg-amber-50/50' : ''
-                        }`}
-                        onClick={() => {
-                          stockService.markNotificationAsRead(n.id);
-                        }}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="w-2 h-2 mt-1 rounded-full bg-brand-orange flex-shrink-0" />
-                          <div>
-                            <p className="font-semibold text-brand-navy">
-                              {language === 'ar' ? n.title_ar : n.title_fr}
-                            </p>
-                            <p className="text-gray-600 text-[11px] mt-0.5">
-                              {language === 'ar' ? n.message_ar : n.message_fr}
-                            </p>
-                            <span className="text-[10px] text-gray-400 mt-1 block">
-                              {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/10 sm:bg-transparent"
+                  onClick={() => setShowNotifications(false)}
+                />
+                <div
+                  className={`fixed top-16 inset-x-3 sm:inset-x-auto sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden ${
+                    isRTL ? 'sm:left-0 sm:right-auto' : 'sm:right-0 sm:left-auto'
+                  }`}
+                >
+                  <div className="px-4 py-3 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-brand-navy uppercase tracking-wider">
+                      {t('nav_notifications')} ({unreadCount} {language === 'ar' ? 'غير مقروءة' : 'non lues'})
+                    </h4>
+                    <button
+                      onClick={() => {
+                        notifications.forEach(n => stockService.markNotificationAsRead(n.id));
+                        setShowNotifications(false);
+                      }}
+                      className="text-[11px] text-brand-orange hover:underline font-medium"
+                    >
+                      {language === 'ar' ? 'تحديد الكل كمقروء' : 'Tout marquer comme lu'}
+                    </button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-gray-400">
+                        {language === 'ar' ? 'لا توجد إشعارات' : 'Aucune notification'}
+                      </div>
+                    ) : (
+                      notifications.slice(0, 6).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`p-3.5 text-xs transition-colors hover:bg-gray-50 cursor-pointer ${
+                            !n.is_read ? 'bg-amber-50/50' : ''
+                          }`}
+                          onClick={() => {
+                            stockService.markNotificationAsRead(n.id);
+                          }}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span className="w-2 h-2 mt-1 rounded-full bg-brand-orange flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-brand-navy">
+                                {language === 'ar' ? n.title_ar : n.title_fr}
+                              </p>
+                              <p className="text-gray-600 text-[11px] mt-0.5 leading-relaxed">
+                                {language === 'ar' ? n.message_ar : n.message_fr}
+                              </p>
+                              <span className="text-[10px] text-gray-400 mt-1 block">
+                                {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
           {/* User Profile & Menu */}
           <div className="relative">
             <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
+              onClick={() => {
+                setShowUserMenu(!showUserMenu);
+                setShowNotifications(false);
+              }}
               className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 transition-colors focus:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-brand-navy text-white flex items-center justify-center font-bold text-xs shadow-sm">
@@ -193,28 +211,39 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
             {/* User Dropdown */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-dropdown border border-gray-100 z-50 p-2">
-                <div className="px-3 py-2 border-b border-gray-100 mb-1">
-                  <p className="text-xs font-bold text-brand-navy">{user?.full_name}</p>
-                  <p className="text-[11px] text-gray-500 truncate">{user?.email}</p>
-                  {user?.department && (
-                    <span className="inline-block mt-1 text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-medium">
-                      Service: {user.department}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logout();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/10 sm:bg-transparent"
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div
+                  className={`absolute mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 p-2 ${
+                    isRTL ? 'left-0 right-auto' : 'right-0 left-auto'
+                  }`}
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>{t('logout')}</span>
-                </button>
-              </div>
+                  <div className="px-3 py-2 border-b border-gray-100 mb-1">
+                    <p className="text-xs font-bold text-brand-navy">{user?.full_name}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{user?.email}</p>
+                    {user?.department && (
+                      <span className="inline-block mt-1 text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-medium">
+                        {language === 'ar' ? 'القسم: ' : 'Service: '}
+                        {user.department}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>{t('logout')}</span>
+                  </button>
+                </div>
+              </>
             )}
           </div>
 

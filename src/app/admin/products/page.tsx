@@ -65,6 +65,7 @@ export default function AdminProductsPage() {
     description: '',
     category_id: categories[0]?.id || '',
     unit: 'kg',
+    physical_stock: 0,
     min_stock: 5,
     purchase_price: 0,
     supplier_id: suppliers[0]?.id || '',
@@ -102,6 +103,7 @@ export default function AdminProductsPage() {
       description: '',
       category_id: categories[0]?.id || '',
       unit: 'kg',
+      physical_stock: 0,
       min_stock: 5,
       purchase_price: 0,
       supplier_id: suppliers[0]?.id || '',
@@ -120,6 +122,7 @@ export default function AdminProductsPage() {
       description: prod.description || '',
       category_id: prod.category_id,
       unit: prod.unit,
+      physical_stock: prod.physical_stock,
       min_stock: prod.min_stock,
       purchase_price: prod.purchase_price,
       supplier_id: prod.supplier_id || '',
@@ -498,6 +501,25 @@ export default function AdminProductsPage() {
                 <option value="sac">Sac</option>
               </select>
             </div>
+
+            <Input
+              label={
+                editingProduct
+                  ? `Stock physique actuel (${formData.unit}) *`
+                  : `Quantité initiale en stock (${formData.unit}) *`
+              }
+              type="number"
+              step="any"
+              min="0"
+              value={formData.physical_stock}
+              onChange={(e) => setFormData({ ...formData, physical_stock: Number(e.target.value) })}
+              required
+              helperText={
+                editingProduct
+                  ? `Stock physique en réserve (${formData.physical_stock} ${formData.unit})`
+                  : `Quantité disponible immédiatement à la création (${formData.unit})`
+              }
+            />
 
             <Input
               label="Stock Minimum d'alerte *"
