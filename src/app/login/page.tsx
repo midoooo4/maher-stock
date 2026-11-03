@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { Button } from '@/components/ui/Button';
@@ -86,18 +87,22 @@ export default function LoginPage() {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4">
-        {/* Logo and title */}
+        {/* Logo and title (clicking logo redirects to hidden admin login) */}
         <div className="text-center space-y-2">
-          <div className="relative w-20 h-20 mx-auto rounded-2xl bg-white p-2 shadow-card border border-amber-100 flex items-center justify-center">
+          <Link
+            href="/admin-login"
+            className="relative w-20 h-20 mx-auto rounded-2xl bg-white p-2 shadow-card border border-amber-100 flex items-center justify-center cursor-pointer hover:border-brand-orange/40 active:scale-95 transition-all block"
+            title="Complexe Maher"
+          >
             <Image
               src="/logo.png"
               alt="Complexe Maher"
               width={72}
               height={72}
               priority
-              className="object-contain"
+              className="object-contain select-none pointer-events-none"
             />
-          </div>
+          </Link>
 
           <div>
             <h2 className="text-2xl font-extrabold text-brand-navy tracking-tight">
