@@ -5,20 +5,11 @@ import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
-import { 
-  Bell, 
-  Globe, 
-  LogOut, 
-  User, 
-  ChevronDown, 
-  CheckCircle2, 
-  ShieldCheck, 
-  AlertTriangle 
-} from 'lucide-react';
+import { Bell, Globe, LogOut, ChevronDown } from 'lucide-react';
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { language, toggleLanguage, t, isRTL } = useTranslation();
-  const { user, role, logout, switchUser, allUsers } = useAuth();
+  const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -81,31 +72,6 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             <Globe className="w-3.5 h-3.5 text-brand-turquoise" />
             <span>{language === 'fr' ? 'العربية' : 'Français'}</span>
           </button>
-
-          {/* Quick Demo Switcher (Helps verify all 3 personas instantly) */}
-          <div className="relative hidden md:block">
-            <select
-              value={user?.id || ''}
-              onChange={(e) => {
-                const target = allUsers.find(u => u.id === e.target.value);
-                if (target) {
-                  if (!target.is_active) {
-                    alert('Ce compte utilisateur a été désactivé par l\'administrateur.');
-                    return;
-                  }
-                  switchUser(target);
-                }
-              }}
-              className="text-xs bg-slate-50 border border-slate-200 text-slate-700 font-medium rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-orange cursor-pointer"
-            >
-              {allUsers.map((u) => (
-                <option key={u.id} value={u.id} disabled={!u.is_active}>
-                  {u.role === 'ADMIN' ? '👑 ' : u.role === 'RESPONSABLE' ? '🔑 ' : '👤 '}
-                  {u.full_name} ({u.role}) {!u.is_active ? '• [Désactivé]' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* Notifications Dropdown */}
           <div className="relative">
