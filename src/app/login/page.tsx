@@ -283,14 +283,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick info about default PINs */}
-          <div className="mt-5 pt-4 border-t border-gray-100 text-center">
-            <p className="text-[11px] text-gray-400">
-              {language === 'ar'
-                ? 'رمز PIN الافتراضي: المالك (0000) • المسؤول (1234) • الموظفون (1111, 2222...)'
-                : 'PINs par défaut : Propriétaire (0000) • Économat (1234) • Employés (1111, 2222...)'}
-            </p>
-          </div>
+
         </div>
 
         {/* Footer */}
