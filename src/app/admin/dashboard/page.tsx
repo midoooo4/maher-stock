@@ -253,20 +253,24 @@ export default function AdminDashboardPage() {
           icon={<ArrowUpRight className="w-5 h-5" />}
           colorScheme="navy"
         />
-        <StatCard
-          title={t('stat_low_stock')}
-          value={lowStockCount}
-          subtitle="Seuil minimum atteint"
-          icon={<AlertOctagon className="w-5 h-5" />}
-          colorScheme={lowStockCount > 0 ? 'red' : 'emerald'}
-        />
-        <StatCard
-          title={t('stat_anomalies')}
-          value={pendingAnomaliesCount}
-          subtitle="Écarts à régulariser"
-          icon={<AlertTriangle className="w-5 h-5" />}
-          colorScheme={pendingAnomaliesCount > 0 ? 'red' : 'emerald'}
-        />
+        <Link href="/admin/products?filter=low_stock" className="block cursor-pointer">
+          <StatCard
+            title={t('stat_low_stock')}
+            value={lowStockCount}
+            subtitle="Seuil minimum atteint"
+            icon={<AlertOctagon className="w-5 h-5" />}
+            colorScheme={lowStockCount > 0 ? 'red' : 'emerald'}
+          />
+        </Link>
+        <Link href="/admin/anomalies" className="block cursor-pointer">
+          <StatCard
+            title={t('stat_anomalies')}
+            value={pendingAnomaliesCount}
+            subtitle="Écarts à régulariser"
+            icon={<AlertTriangle className="w-5 h-5" />}
+            colorScheme={pendingAnomaliesCount > 0 ? 'red' : 'emerald'}
+          />
+        </Link>
       </div>
 
       {/* Interactive Charts Section */}

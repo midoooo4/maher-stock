@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n/context';
 import { useAuth } from '@/lib/auth/context';
 import { stockService } from '@/lib/db/stock-service';
@@ -40,17 +41,35 @@ const SUGGESTED_IMAGES = [
   { label: 'Emballage Kraft', url: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&q=80' },
 ];
 
-export default function AdminProductsPage() {
+function AdminProductsContent() {
   const { t } = useTranslation();
   const { user, role } = useAuth();
+  const searchParams = useSearchParams();
+
+  const filterParam = searchParams.get('filter') || searchParams.get('status');
+  const isAlertParam = filterParam === 'low_stock' || filterParam === 'alert' || filterParam === 'rupture' || filterParam === 'low';
 
   const [products, setProducts] = useState<Product[]>([]);
   const categories = stockService.getCategories();
   const suppliers = stockService.getSuppliers();
 
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [search, setSearch] = useState(searchParams.get('q') || searchParams.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || 'all');
+  const [selectedStatus, setSelectedStatus] = useState<string>(isAlertParam ? 'low_stock' : 'all');
+
+  // React to URL changes (e.g. clicking Voir articles from dashboard)
+  useEffect(() => {
+    const f = searchParams.get('filter') || searchParams.get('status');
+    if (f === 'low_stock' || f === 'alert' || f === 'rupture' || f === 'low') {
+      setSelectedStatus('low_stock');
+    } else if (f === 'all' || f === 'active' || f === 'inactive') {
+      setSelectedStatus(f);
+    }
+    const cat = searchParams.get('category');
+    if (cat) setSelectedCategory(cat);
+    const q = searchParams.get('q') || searchParams.get('search');
+    if (q !== null && q !== undefined) setSearch(q);
+  }, [searchParams]);
 
   // Modal states
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
@@ -655,5 +674,19 @@ export default function AdminProductsPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <AdminProductsContent />
+    </Suspense>
   );
 }
